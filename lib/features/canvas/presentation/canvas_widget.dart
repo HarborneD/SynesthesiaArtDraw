@@ -24,7 +24,7 @@ class CanvasWidget extends StatefulWidget {
   final ValueChanged<GradientStroke>? onGradientStrokeAdded;
   final bool showGradientOverlays;
 
-  final ValueChanged<DrawnLine> onCurrentLineUpdated;
+  final ValueChanged<DrawnLine?> onCurrentLineUpdated;
   final ValueChanged<DrawnLine> onLineCompleted;
   final ValueChanged<DrawnLine> onLineDeleted;
   final Function(int, DrawnLine) onNoteTriggered;
@@ -148,9 +148,10 @@ class _CanvasWidgetState extends State<CanvasWidget> {
             p1: p1,
             colors: [Colors.purple, Colors.blue, Colors.cyan],
             stops: [0.0, 0.5, 1.0],
-            intensity: 100.0, // Fixed radius for now
+            intensity: 800.0,
           );
           widget.onGradientStrokeAdded?.call(stroke);
+          widget.onCurrentLineUpdated(null); // Clear the temporary line
         }
       } else {
         widget.onLineCompleted(widget.currentLine!);

@@ -66,9 +66,9 @@ class GradientToolsPane extends StatelessWidget {
                     // Intensity Slider
                     const Text("Intensity (Radius)"),
                     Slider(
-                      value: stroke.intensity.clamp(10.0, 500.0),
+                      value: stroke.intensity.clamp(10.0, 1600.0),
                       min: 10.0,
-                      max: 500.0,
+                      max: 1600.0,
                       label: stroke.intensity.toStringAsFixed(0),
                       onChanged: (val) {
                         onStrokeUpdated(index, stroke.copyWith(intensity: val));
