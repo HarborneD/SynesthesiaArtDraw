@@ -86,6 +86,14 @@ class _HomePageState extends State<HomePage> {
       final path = 'assets/sounds_fonts/$fileName';
       _sfId = await _midi.loadSoundfontAsset(assetPath: path);
       debugPrint("Loaded SoundFont: $path (ID: $_sfId)");
+
+      // Fix: Ensure we select the instrument on the new SoundFont for Channel 0
+      // This helps prevent "layering" or stuck instruments from previous SFs
+      _midi.selectInstrument(
+        sfId: _sfId,
+        program: _selectedInstrumentIndex,
+        channel: 0,
+      );
     } catch (e) {
       debugPrint("Error loading SoundFont: $e");
     }
@@ -107,6 +115,14 @@ class _HomePageState extends State<HomePage> {
       _isPlaying = false;
       _currentTick = 0;
       _clockTimer?.cancel();
+
+      // Stop Audio
+      _playerDown.stop();
+      _playerUp.stop();
+
+      // Stop MIDI (Best effort)
+      // flutter_midi_pro doesn't have a global "stop all", but we can rely on our duration logic
+      // to eventually clean up. If we need immediate silence, we'd need to track active notes.
     });
   }
 
@@ -139,15 +155,29 @@ class _HomePageState extends State<HomePage> {
         _currentTick = (_currentTick + 1) % 16;
 
         if (_isMetronomeOn) {
-          if (_currentTick % 4 == 0) {
-            _playerDown.stop(); // Stop previous if overlap
-            _playerDown.resume();
-          } else {
-            _playerUp.stop();
-            _playerUp.resume();
-          }
+          // Fix: Re-trigger play from source every time to ensure consistent firing
+          // "Fire and Forget" strategy
+          final player = (_currentTick % 4 == 0) ? _playerDown : _playerUp;
+          final source = (_currentTick % 4 == 0)
+              ? AssetSource('metronome/Zoom ST Down .wav')
+              : AssetSource('metronome/Zoom ST UP.wav');
+
+          player.stop().then((_) {
+            player.play(source, mode: PlayerMode.lowLatency);
+          });
         }
       });
+    });
+  }
+
+  // Helper to play note with duration (prevents infinite sustain)
+  void _playNoteWithDuration(int note, int velocity, int durationMs) {
+    if (!_isMidiInitialized) return;
+
+    _midi.playNote(key: note, velocity: velocity, channel: 0, sfId: _sfId);
+
+    Future.delayed(Duration(milliseconds: durationMs), () {
+      _midi.stopNote(key: note, channel: 0, sfId: _sfId);
     });
   }
 
@@ -345,13 +375,8 @@ class _HomePageState extends State<HomePage> {
                             final notes = _musicConfig.getAllMidiNotes();
                             if (noteIndex >= 0 && noteIndex < notes.length) {
                               final midiNote = notes[noteIndex];
-                              // Named arguments per flutter_midi_pro 3.x
-                              _midi.playNote(
-                                key: midiNote,
-                                velocity: 127,
-                                channel: 0,
-                                sfId: _sfId,
-                              );
+                              // Use helper for duration to prevent infinite sustain
+                              _playNoteWithDuration(midiNote, 127, 300);
                             }
                           },
                         ),
