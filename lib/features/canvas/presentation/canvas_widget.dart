@@ -70,6 +70,7 @@ class CanvasWidget extends StatefulWidget {
 class _CanvasWidgetState extends State<CanvasWidget> {
   Offset? _lastTriggerPoint;
   int? _lastTriggerNoteIndex;
+  DateTime? _lastDirectionTriggerTime;
   bool _isRightClick = false;
 
   void _handlePanStart(DragStartDetails details, BoxConstraints constraints) {
@@ -90,6 +91,7 @@ class _CanvasWidgetState extends State<CanvasWidget> {
 
     final point = DrawingPoint(point: details.localPosition);
     final newLine = DrawnLine(
+      id: DateTime.now().toIso8601String(), // Simple unique ID
       path: [point],
       width: 2.0,
       color: widget.selectedColor,
@@ -139,6 +141,7 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     // .. Wait, `widget.currentLine` is passed from parent.
     // In PanStart we create a NEW line.
     final updatedLine = DrawnLine(
+      id: widget.currentLine!.id, // Propagate ID
       path: updatedList,
       color: widget.currentLine!.color,
       width: widget.currentLine!.width,
@@ -231,6 +234,24 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     return (p - projection).distance;
   }
 
+  // Helper to start searching backwards from index [startIdx]
+  // Returns index of point >= minDistance away, or -1 if not found.
+  int _findPointAtMinDist(
+    List<DrawingPoint> path,
+    int startIdx,
+    double minDistance,
+  ) {
+    if (startIdx < 0 || startIdx >= path.length) return -1;
+
+    final startP = path[startIdx].point;
+    for (int i = startIdx - 1; i >= 0; i--) {
+      if ((path[i].point - startP).distance >= minDistance) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
   void _processTriggerLogic(
     Offset currentPoint,
     double height,
@@ -274,11 +295,61 @@ class _CanvasWidgetState extends State<CanvasWidget> {
         shouldTrigger = true;
       }
     }
+
     // 3. Check Segment Length
     if (_lastTriggerPoint != null) {
       final distance = (currentPoint - _lastTriggerPoint!).distance;
       if (distance >= widget.segmentLength) {
         shouldTrigger = true;
+      }
+    }
+
+    // 4. Direction Change Trigger
+    // We utilize a "lookback" strategy to smooth out small jitters.
+    // Instead of adjacent points, we look for points separated by at least X pixels.
+    final double lookbackDist =
+        15.0; // Minimum vector length to be considered a stable direction
+
+    if (activeLine.path.length >= 3) {
+      final idxC = activeLine.path.length - 1;
+      final idxB = _findPointAtMinDist(activeLine.path, idxC, lookbackDist);
+
+      if (idxB != -1) {
+        final idxA = _findPointAtMinDist(activeLine.path, idxB, lookbackDist);
+
+        if (idxA != -1) {
+          final pA = activeLine.path[idxA].point;
+          final pB = activeLine.path[idxB].point;
+          final pC = activeLine.path[idxC].point;
+
+          // Vector 1: Incoming (A -> B)
+          final v1 = pB - pA;
+          // Vector 2: Outgoing (B -> C)
+          final v2 = pC - pB;
+
+          if (v1.distance > 0 && v2.distance > 0) {
+            final angle1 = v1.direction;
+            final angle2 = v2.direction;
+
+            double diff = (angle1 - angle2).abs();
+            if (diff > pi) diff = 2 * pi - diff;
+
+            final diffDegrees = diff * 180 / pi;
+
+            // Debounce check (e.g. 200ms) to prevent multiple triggers for the same corner
+            final now = DateTime.now();
+            bool inDebounce =
+                _lastDirectionTriggerTime != null &&
+                now.difference(_lastDirectionTriggerTime!).inMilliseconds < 200;
+
+            if (!inDebounce &&
+                diffDegrees > widget.musicConfig.directionChangeThreshold) {
+              shouldTrigger = true;
+              _lastDirectionTriggerTime = now;
+              // debugPrint("Direction Trigger! Angle: ${diffDegrees.toStringAsFixed(1)}");
+            }
+          }
+        }
       }
     }
 
@@ -370,8 +441,8 @@ class _LinesPainter extends CustomPainter {
       }
 
       // 2. Draw Bristles (Paint Brush Effect)
-      // Use the line's hash as a seed for stable randomness
-      final random = Random(line.hashCode);
+      // Use the line's ID hash as a seed for stable randomness
+      final random = Random(line.id.hashCode);
       final bristleCount = line.bristleCount; // Use line's count
       final baseWidth = line.width;
       final spread = line.spread;
@@ -431,7 +502,7 @@ class _LinesPainter extends CustomPainter {
         canvas.drawPath(path, glowPaint);
       }
 
-      final random = Random(currentLine!.hashCode);
+      final random = Random(currentLine!.id.hashCode);
       final bristleCount = currentLine!.bristleCount;
       final baseWidth = currentLine!.width;
       final spread = currentLine!.spread;

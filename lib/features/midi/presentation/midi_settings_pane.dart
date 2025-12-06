@@ -63,6 +63,25 @@ class _MidiSettingsPaneState extends State<MidiSettingsPane> {
             onChanged: widget.onSustainChanged,
           ),
           const Divider(),
+          Text(
+            'Trigger Settings',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Direction Change Threshold: ${widget.config.directionChangeThreshold.toInt()}°',
+          ),
+          Slider(
+            value: widget.config.directionChangeThreshold,
+            min: 10,
+            max: 180,
+            divisions: 170,
+            label: widget.config.directionChangeThreshold.round().toString(),
+            onChanged: (value) => widget.onConfigChanged(
+              widget.config.copyWith(directionChangeThreshold: value),
+            ),
+          ),
+          const Divider(),
 
           // --- Music Settings ---
           Text('Music Theory', style: Theme.of(context).textTheme.titleMedium),

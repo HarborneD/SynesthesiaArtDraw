@@ -8,6 +8,7 @@ class DrawingPoint {
 }
 
 class DrawnLine {
+  final String id;
   final List<DrawingPoint> path;
   final Color color;
   final double width;
@@ -22,6 +23,7 @@ class DrawnLine {
   final bool useNeonGlow;
 
   DrawnLine({
+    required this.id,
     required this.path,
     this.color = Colors.black,
     this.width = 2.0,

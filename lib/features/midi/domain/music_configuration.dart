@@ -7,6 +7,9 @@ class MusicConfiguration {
   final String selectedScale;
   final List<String> selectedDegrees;
 
+  // Trigger Logic
+  final double directionChangeThreshold; // degrees
+
   static const Map<String, String> scaleNameMap = {
     'Major': 'Diatonic Major',
     'Minor': 'Natural Minor',
@@ -41,6 +44,7 @@ class MusicConfiguration {
     this.selectedKey = 'A',
     this.selectedScale = 'Minor',
     List<String>? selectedDegrees,
+    this.directionChangeThreshold = 90.0,
   }) : selectedDegrees = selectedDegrees ?? getDegreesInScale('A', 'Minor');
 
   MusicConfiguration copyWith({
@@ -49,6 +53,7 @@ class MusicConfiguration {
     String? selectedKey,
     String? selectedScale,
     List<String>? selectedDegrees,
+    double? directionChangeThreshold,
   }) {
     return MusicConfiguration(
       octaves: octaves ?? this.octaves,
@@ -56,6 +61,8 @@ class MusicConfiguration {
       selectedKey: selectedKey ?? this.selectedKey,
       selectedScale: selectedScale ?? this.selectedScale,
       selectedDegrees: selectedDegrees ?? this.selectedDegrees,
+      directionChangeThreshold:
+          directionChangeThreshold ?? this.directionChangeThreshold,
     );
   }
 

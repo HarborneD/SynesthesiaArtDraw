@@ -525,6 +525,7 @@ class _HomePageState extends State<HomePage> {
                             // This effectively "stamps" the line with the sound it was drawn with
 
                             final stampedLine = DrawnLine(
+                              id: line.id,
                               path: line.path,
                               color: line.color,
                               width: line.width,
