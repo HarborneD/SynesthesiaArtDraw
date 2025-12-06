@@ -133,15 +133,17 @@ class _HomePageState extends State<HomePage>
 
   Future<void> _initMidi() async {
     // Preload sounds for lower latency
-    try {
-      await _playerDown.setSource(AssetSource('metronome/Zoom ST Down .wav'));
-      await _playerDown.setPlayerMode(PlayerMode.lowLatency);
+    /*
+  try {
+    await _playerDown.setSource(AssetSource('metronome/Zoom ST Down .wav'));
+    await _playerDown.setPlayerMode(PlayerMode.lowLatency);
 
-      await _playerUp.setSource(AssetSource('metronome/Zoom ST UP.wav'));
-      await _playerUp.setPlayerMode(PlayerMode.lowLatency);
-    } catch (e) {
-      debugPrint("Error loading audio: $e");
-    }
+    await _playerUp.setSource(AssetSource('metronome/Zoom ST UP.wav'));
+    await _playerUp.setPlayerMode(PlayerMode.lowLatency);
+  } catch (e) {
+    debugPrint("Error loading audio: $e");
+  }
+  */
 
     await _loadSoundFont(_selectedSoundFont);
     setState(() {
@@ -282,10 +284,14 @@ class _HomePageState extends State<HomePage>
     _clockTimer = Timer.periodic(Duration(milliseconds: msPerTick.round()), (
       timer,
     ) {
-      if (_isMetronomeOn && _currentTick % 4 == 0) {
-        final player = (_currentTick == 0) ? _playerDown : _playerUp;
-        // Re-trigger
-        player.stop().then((_) => player.resume());
+      if (_isMetronomeOn) {
+        final isDownbeat = _currentTick % 4 == 0;
+        final player = isDownbeat ? _playerDown : _playerUp;
+        final source = isDownbeat
+            ? AssetSource('metronome/Zoom ST Down .wav')
+            : AssetSource('metronome/Zoom ST UP.wav');
+        // Use standard play() - more reliable for one-shots
+        player.play(source);
       }
 
       // Check for line triggers
