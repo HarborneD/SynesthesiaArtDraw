@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import '../../midi/domain/music_configuration.dart';
 import '../../drawing/domain/drawn_line.dart';
 import '../../drawing/domain/gradient_stroke.dart';
+import 'dart:math';
 import '../../canvas/presentation/background_gradient_painter.dart';
 
 import '../../drawing/domain/drawing_mode.dart';
@@ -342,9 +343,35 @@ class _LinesPainter extends CustomPainter {
 
       canvas.drawPath(path, glowPaint);
 
-      // 2. Draw Core (Front)
+      // 2. Draw Bristles (Paint Brush Effect)
+      // Use the line's hash as a seed for stable randomness
+      final random = Random(line.hashCode);
+      final bristleCount = 8;
+      final baseWidth = line.width;
+
+      // Draw multiple passes with varying offsets and opacity
+      for (int i = 0; i < bristleCount; i++) {
+        final offsetX = (random.nextDouble() - 0.5) * baseWidth * 2;
+        final offsetY = (random.nextDouble() - 0.5) * baseWidth * 2;
+        final opacity = 0.3 + (random.nextDouble() * 0.5); // 0.3 to 0.8
+
+        final bristlePaint = Paint()
+          ..color = line.color
+              .withOpacity(opacity * 0.5) // Lower base opacity
+          ..strokeWidth = max(1.0, baseWidth / 3)
+          ..strokeCap = StrokeCap.round
+          ..style = PaintingStyle.stroke;
+
+        canvas.save();
+        canvas.translate(offsetX, offsetY);
+        canvas.drawPath(path, bristlePaint);
+        canvas.restore();
+      }
+
+      // Optional: Draw a thin core for definition?
+      // For pure paint look, maybe not. Let's keep a very subtle core.
       final corePaint = Paint()
-        ..color = line.color
+        ..color = line.color.withOpacity(0.3)
         ..strokeWidth = line.width
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
@@ -355,26 +382,32 @@ class _LinesPainter extends CustomPainter {
     // Draw active line
     if (currentLine != null) {
       if (currentLine!.path.isEmpty) return;
-      // Glow
-      final glowPaint = Paint()
-        ..color = currentLine!.color.withOpacity(0.6)
-        ..strokeWidth = currentLine!.width * 4
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8.0);
+      // Active line: Draw simpler for performance, or full effect?
+      // Detailed effect is fine for one line.
+      final path = LinePainterUtils.generateSmoothPath(
+        currentLine!.path.map((p) => p.point).toList(),
+      );
 
-      final points = currentLine!.path.map((p) => p.point).toList();
-      final path = LinePainterUtils.generateSmoothPath(points);
-      canvas.drawPath(path, glowPaint);
+      final random = Random(currentLine.hashCode);
+      final bristleCount = 8;
+      final baseWidth = currentLine!.width;
 
-      // Core
-      final corePaint = Paint()
-        ..color = currentLine!.color
-        ..strokeWidth = currentLine!.width
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke;
+      for (int i = 0; i < bristleCount; i++) {
+        final offsetX = (random.nextDouble() - 0.5) * baseWidth * 2;
+        final offsetY = (random.nextDouble() - 0.5) * baseWidth * 2;
+        final opacity = 0.3 + (random.nextDouble() * 0.5);
 
-      canvas.drawPath(path, corePaint);
+        final bristlePaint = Paint()
+          ..color = currentLine!.color.withOpacity(opacity * 0.5)
+          ..strokeWidth = max(1.0, baseWidth / 3)
+          ..strokeCap = StrokeCap.round
+          ..style = PaintingStyle.stroke;
+
+        canvas.save();
+        canvas.translate(offsetX, offsetY);
+        canvas.drawPath(path, bristlePaint);
+        canvas.restore();
+      }
     }
   }
 
