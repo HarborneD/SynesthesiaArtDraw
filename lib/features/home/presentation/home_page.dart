@@ -352,8 +352,13 @@ class _HomePageState extends State<HomePage> {
                             final notes = _musicConfig.getAllMidiNotes();
                             if (noteIndex >= 0 && noteIndex < notes.length) {
                               final midiNote = notes[noteIndex];
-                              // Trying named arguments based on others being named
-                              _midi.playNote(note: midiNote, velocity: 127, channel: 0);
+                              // Named arguments per flutter_midi_pro 3.x
+                              _midi.playNote(
+                                key: midiNote,
+                                velocity: 127,
+                                channel: 0,
+                                sfId: _sfId,
+                              );
                             }
                           },
                         ),
@@ -370,3 +375,4 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+}
