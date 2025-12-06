@@ -23,3 +23,39 @@ This can be listened to by external midi devices or midi apps.
 
 There is an option to listen to the stream within the app, using flutter_midi_command and isntrumenting using sound fonts via https://pub.dev/packages/flutter_midi_pro. 
 
+
+## Running the App
+
+### macOS
+To run the application on macOS, execute the following command in the project root:
+```bash
+flutter run -d macos
+```
+
+### Android
+To run the application on an Android device:
+
+1.  **Connect your device**: Ensure your Android device is connected and USB debugging is enabled.
+2.  **Find Device ID**: Run the following command to see connected devices:
+    ```bash
+    flutter devices
+    ```
+    You will see output similar to:
+    ```text
+    SM X400 (mobile) • R52YA05JJGB • android-arm64 • Android 15 (API 35)
+    ```
+    In this example, `R52YA05JJGB` is the device ID.
+
+3.  **Run the App**:
+    Use the device ID or `android` if it's the only Android device connected:
+    ```bash
+    flutter run -d <device_id>
+    ```
+    *Example:*
+    ```bash
+    flutter run -d R52YA05JJGB
+    ```
+    *Or generically:*
+    ```bash
+    flutter run -d android
+    ```
