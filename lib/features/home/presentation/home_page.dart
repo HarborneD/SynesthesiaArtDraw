@@ -40,6 +40,12 @@ class _HomePageState extends State<HomePage> {
   Color _selectedLineColor = Colors.black; // Default line color
   bool _triggerOnBoundary = false; // Default off
 
+  // Brush Customization
+  double _brushSpread = 2.0;
+  double _brushOpacity = 0.5;
+  int _bristleCount = 8;
+  bool _useNeonGlow = true;
+
   // Gradient State
   List<GradientStroke> _gradientStrokes = [];
   ui.FragmentShader? _backgroundShader;
@@ -311,6 +317,16 @@ class _HomePageState extends State<HomePage> {
           onStrokeDeleted: (idx) => setState(() {
             _gradientStrokes.removeAt(idx);
           }),
+
+          // Brush Props
+          brushSpread: _brushSpread,
+          onBrushSpreadChanged: (val) => setState(() => _brushSpread = val),
+          brushOpacity: _brushOpacity,
+          onBrushOpacityChanged: (val) => setState(() => _brushOpacity = val),
+          bristleCount: _bristleCount,
+          onBristleCountChanged: (val) => setState(() => _bristleCount = val),
+          useNeonGlow: _useNeonGlow,
+          onNeonGlowChanged: (val) => setState(() => _useNeonGlow = val),
         );
       case 1:
         return MidiSettingsPane(
@@ -481,6 +497,12 @@ class _HomePageState extends State<HomePage> {
                           selectedColor: _selectedLineColor,
                           triggerOnBoundary: _triggerOnBoundary,
 
+                          // Brush Style Props
+                          currentBrushSpread: _brushSpread,
+                          currentBrushOpacity: _brushOpacity,
+                          currentBristleCount: _bristleCount,
+                          currentUseNeonGlow: _useNeonGlow,
+
                           // Gradient Props
                           backgroundShader: _backgroundShader,
                           gradientStrokes: _gradientStrokes,
@@ -509,6 +531,12 @@ class _HomePageState extends State<HomePage> {
                               soundFont: _selectedSoundFont,
                               program: _selectedInstrumentIndex,
                               sfId: _sfId,
+
+                              // Capture current brush style
+                              spread: _brushSpread,
+                              opacity: _brushOpacity,
+                              bristleCount: _bristleCount,
+                              useNeonGlow: _useNeonGlow,
                             );
 
                             _lines.add(stampedLine);

@@ -25,6 +25,16 @@ class DrawingToolsPane extends StatefulWidget {
   final bool triggerOnBoundary;
   final ValueChanged<bool>? onTriggerOnBoundaryChanged;
 
+  // Brush Props
+  final double brushSpread;
+  final ValueChanged<double>? onBrushSpreadChanged;
+  final double brushOpacity;
+  final ValueChanged<double>? onBrushOpacityChanged;
+  final int bristleCount;
+  final ValueChanged<int>? onBristleCountChanged;
+  final bool useNeonGlow;
+  final ValueChanged<bool>? onNeonGlowChanged;
+
   const DrawingToolsPane({
     super.key,
     required this.currentMode,
@@ -41,6 +51,16 @@ class DrawingToolsPane extends StatefulWidget {
     this.onColorChanged,
     this.triggerOnBoundary = false,
     this.onTriggerOnBoundaryChanged,
+
+    // Brush Defaults
+    this.brushSpread = 1.0,
+    this.onBrushSpreadChanged,
+    this.brushOpacity = 0.5,
+    this.onBrushOpacityChanged,
+    this.bristleCount = 8,
+    this.onBristleCountChanged,
+    this.useNeonGlow = true,
+    this.onNeonGlowChanged,
   });
 
   @override
@@ -162,6 +182,38 @@ class _DrawingToolsPaneState extends State<DrawingToolsPane> {
           1.0,
           10.0,
           widget.onMinPixelsChanged,
+        ),
+        const Divider(),
+        const Text(
+          "Brush Settings",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        SwitchListTile(
+          title: const Text("Neon Glow"),
+          value: widget.useNeonGlow,
+          onChanged: widget.onNeonGlowChanged,
+          contentPadding: EdgeInsets.zero,
+        ),
+        _buildSlider(
+          "Spread (Jitter)",
+          widget.brushSpread,
+          0.0,
+          20.0,
+          widget.onBrushSpreadChanged!,
+        ),
+        _buildSlider(
+          "Opacity",
+          widget.brushOpacity,
+          0.1,
+          1.0,
+          widget.onBrushOpacityChanged!,
+        ),
+        _buildSlider(
+          "Bristles (Density)",
+          widget.bristleCount.toDouble(),
+          1.0,
+          20.0,
+          (val) => widget.onBristleCountChanged!(val.toInt()),
         ),
       ],
     );
