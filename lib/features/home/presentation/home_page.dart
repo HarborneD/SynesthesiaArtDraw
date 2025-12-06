@@ -48,6 +48,22 @@ class _HomePageState extends State<HomePage> {
   int _selectedInstrumentIndex = 0;
   int _sfId = 0;
 
+  // Sustain State
+  bool _isSustainOn = true;
+  int _currentMidiNote = -1;
+
+  final List<String> _soundFonts = [
+    'Dystopian Terra.sf2',
+    'VocalsPapel.sf2',
+    'White Grand Piano I.sf2',
+    'White Grand Piano II.sf2',
+    'White Grand Piano III.sf2',
+    'White Grand Piano IV.sf2',
+    'White Grand Piano V.sf2',
+    'casio sk-200 gm sf2.sf2',
+    'mick_gordon_string_efx.sf2',
+  ];
+
   // Audio State
   final AudioPlayer _playerDown = AudioPlayer();
   final AudioPlayer _playerUp = AudioPlayer();
@@ -97,6 +113,18 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       debugPrint("Error loading SoundFont: $e");
     }
+  }
+
+  void _cycleSoundFont(int direction) {
+    int currentIndex = _soundFonts.indexOf(_selectedSoundFont);
+    if (currentIndex == -1) currentIndex = 0;
+
+    int newIndex = (currentIndex + direction) % _soundFonts.length;
+    if (newIndex < 0) newIndex = _soundFonts.length - 1;
+
+    final newFont = _soundFonts[newIndex];
+    setState(() => _selectedSoundFont = newFont);
+    _loadSoundFont(newFont);
   }
 
   void _togglePlay() {
@@ -210,10 +238,13 @@ class _HomePageState extends State<HomePage> {
       case 1:
         return MidiSettingsPane(
           config: _musicConfig,
-          onConfigChanged: _updateConfig, // Use encapsulated updater
+          onConfigChanged: _updateConfig,
+          isSustainOn: _isSustainOn,
+          onSustainChanged: (val) => setState(() => _isSustainOn = val),
         );
       case 2:
         return InstrumentSettingsPane(
+          availableSoundFonts: _soundFonts,
           selectedSoundFont: _selectedSoundFont,
           onSoundFontChanged: (val) async {
             if (val != _selectedSoundFont) {
@@ -255,6 +286,12 @@ class _HomePageState extends State<HomePage> {
         _togglePlay();
       } else if (event.logicalKey == LogicalKeyboardKey.keyM) {
         _toggleMetronome();
+      } else if (event.logicalKey == LogicalKeyboardKey.keyS) {
+        setState(() => _isSustainOn = !_isSustainOn);
+      } else if (event.logicalKey == LogicalKeyboardKey.equal) {
+        _cycleSoundFont(1);
+      } else if (event.logicalKey == LogicalKeyboardKey.minus) {
+        _cycleSoundFont(-1);
       } else if (event.logicalKey == LogicalKeyboardKey.digit1) {
         _toggleScaleDegree(0);
       } else if (event.logicalKey == LogicalKeyboardKey.digit2) {
@@ -365,9 +402,26 @@ class _HomePageState extends State<HomePage> {
                           onLineCompleted: (line) => setState(() {
                             _lines.add(line);
                             _currentLine = null;
+                            if (_isSustainOn && _currentMidiNote != -1) {
+                              _midi.stopNote(
+                                key: _currentMidiNote,
+                                channel: 0,
+                                sfId: _sfId,
+                              );
+                              _currentMidiNote = -1;
+                            }
                           }),
                           onLineDeleted: (line) => setState(() {
                             _lines.remove(line);
+                            // If deleting active line (unlikely here but safe), stop note
+                            if (_isSustainOn && _currentMidiNote != -1) {
+                              _midi.stopNote(
+                                key: _currentMidiNote,
+                                channel: 0,
+                                sfId: _sfId,
+                              );
+                              _currentMidiNote = -1;
+                            }
                           }),
                           onNoteTriggered: (noteIndex) {
                             if (!_isMidiInitialized) return;
@@ -375,8 +429,28 @@ class _HomePageState extends State<HomePage> {
                             final notes = _musicConfig.getAllMidiNotes();
                             if (noteIndex >= 0 && noteIndex < notes.length) {
                               final midiNote = notes[noteIndex];
-                              // Use helper for duration to prevent infinite sustain
-                              _playNoteWithDuration(midiNote, 127, 300);
+
+                              if (_isSustainOn) {
+                                // Stop previous note if held
+                                if (_currentMidiNote != -1) {
+                                  _midi.stopNote(
+                                    key: _currentMidiNote,
+                                    channel: 0,
+                                    sfId: _sfId,
+                                  );
+                                }
+                                // Play new note (indefinite)
+                                _midi.playNote(
+                                  key: midiNote,
+                                  velocity: 127,
+                                  channel: 0,
+                                  sfId: _sfId,
+                                );
+                                _currentMidiNote = midiNote;
+                              } else {
+                                // Use helper for duration to prevent infinite sustain
+                                _playNoteWithDuration(midiNote, 127, 300);
+                              }
                             }
                           },
                         ),

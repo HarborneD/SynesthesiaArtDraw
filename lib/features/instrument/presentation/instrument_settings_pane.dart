@@ -5,6 +5,7 @@ class InstrumentSettingsPane extends StatefulWidget {
   final ValueChanged<String> onSoundFontChanged;
   final int selectedInstrumentIndex;
   final ValueChanged<int> onInstrumentChanged;
+  final List<String> availableSoundFonts;
 
   const InstrumentSettingsPane({
     super.key,
@@ -12,6 +13,7 @@ class InstrumentSettingsPane extends StatefulWidget {
     required this.onSoundFontChanged,
     required this.selectedInstrumentIndex,
     required this.onInstrumentChanged,
+    required this.availableSoundFonts,
   });
 
   @override
@@ -20,19 +22,6 @@ class InstrumentSettingsPane extends StatefulWidget {
 
 class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
   bool _useInternalAudio = true;
-
-  // Hardcoded list for now, as we can't easily read assets folder at runtime without manifest
-  final List<String> _availableSoundFonts = [
-    'Dystopian Terra.sf2',
-    'VocalsPapel.sf2',
-    'White Grand Piano I.sf2',
-    'White Grand Piano II.sf2',
-    'White Grand Piano III.sf2',
-    'White Grand Piano IV.sf2',
-    'White Grand Piano V.sf2',
-    'casio sk-200 gm sf2.sf2',
-    'mick_gordon_string_efx.sf2',
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +59,7 @@ class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
                     }
                   }
                 : null,
-            items: _availableSoundFonts.map<DropdownMenuItem<String>>((
+            items: widget.availableSoundFonts.map<DropdownMenuItem<String>>((
               String value,
             ) {
               return DropdownMenuItem<String>(value: value, child: Text(value));

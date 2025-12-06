@@ -1,4 +1,20 @@
-# SynesthesiaArtDraw
+# Synesthesia Art Draw
+A Flutter application that combines drawing with generative music.
+
+## Keyboard Shortcuts
+
+| Key | Action |
+| --- | --- |
+| **Space** | Play / Stop |
+| **M** | Toggle Metronome |
+| **S** | Toggle Sustain Mode |
+| **+** / **-** | Next / Previous SoundFont |
+| **L** | Line Mode |
+| **B** | Gradient Mode |
+| **E** | Eraser Mode |
+| **G** | Toggle Note Grid |
+| **1-7** | Toggle Scale Degrees |
+| **Scroll** | Adjust Tempo |
 
 A windows, mac, android and ios app that offers a canvas for uers to draw whilst hearing their art represented as music. 
 

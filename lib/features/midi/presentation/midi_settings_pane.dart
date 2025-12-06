@@ -5,11 +5,15 @@ import '../domain/music_configuration.dart';
 class MidiSettingsPane extends StatefulWidget {
   final MusicConfiguration config;
   final ValueChanged<MusicConfiguration> onConfigChanged;
+  final bool isSustainOn;
+  final ValueChanged<bool> onSustainChanged;
 
   const MidiSettingsPane({
     super.key,
     required this.config,
     required this.onConfigChanged,
+    required this.isSustainOn,
+    required this.onSustainChanged,
   });
 
   @override
@@ -51,6 +55,14 @@ class _MidiSettingsPaneState extends State<MidiSettingsPane> {
         children: [
           Text('Midi Settings', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 20),
+
+          SwitchListTile(
+            title: const Text('Sustain Notes'),
+            subtitle: const Text('Hold notes until next trigger or line end'),
+            value: widget.isSustainOn,
+            onChanged: widget.onSustainChanged,
+          ),
+          const Divider(),
 
           // --- Music Settings ---
           Text('Music Theory', style: Theme.of(context).textTheme.titleMedium),
