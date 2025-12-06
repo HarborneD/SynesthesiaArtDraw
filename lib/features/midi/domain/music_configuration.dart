@@ -10,6 +10,12 @@ class MusicConfiguration {
   // Trigger Logic
   final double directionChangeThreshold; // degrees
 
+  // Grid / Sequencer
+  final int gridBars;
+  final bool showPlayLine;
+
+  int get totalBeats => gridBars * 4;
+
   static const Map<String, String> scaleNameMap = {
     'Major': 'Diatonic Major',
     'Minor': 'Natural Minor',
@@ -45,6 +51,8 @@ class MusicConfiguration {
     this.selectedScale = 'Minor',
     List<String>? selectedDegrees,
     this.directionChangeThreshold = 90.0,
+    this.gridBars = 4,
+    this.showPlayLine = true,
   }) : selectedDegrees = selectedDegrees ?? _getDefaultDegrees();
 
   static List<String> _getDefaultDegrees() {
@@ -66,6 +74,8 @@ class MusicConfiguration {
     String? selectedScale,
     List<String>? selectedDegrees,
     double? directionChangeThreshold,
+    int? gridBars,
+    bool? showPlayLine,
   }) {
     return MusicConfiguration(
       octaves: octaves ?? this.octaves,
@@ -75,6 +85,8 @@ class MusicConfiguration {
       selectedDegrees: selectedDegrees ?? this.selectedDegrees,
       directionChangeThreshold:
           directionChangeThreshold ?? this.directionChangeThreshold,
+      gridBars: gridBars ?? this.gridBars,
+      showPlayLine: showPlayLine ?? this.showPlayLine,
     );
   }
 

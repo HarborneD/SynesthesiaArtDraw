@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 class TransportBar extends StatelessWidget {
   final bool isPlaying;
   final bool isMetronomeOn;
-  final int
-  currentTick; // 0-15 representing 4 bars of 16th notes? Or 4 bars of 4 beats = 16 beats.
+  final int currentTick;
+  final int gridBeats;
   // Requirement: "dots representing 4 bars of 4 with the 1st being bigger."
   // Usually this means 4 bars * 4 beats/bar = 16 beats total.
 
@@ -20,6 +20,7 @@ class TransportBar extends StatelessWidget {
     required this.onPlayPause,
     required this.onStop,
     required this.onMetronomeToggle,
+    required this.gridBeats,
   });
 
   @override
@@ -49,7 +50,7 @@ class TransportBar extends StatelessWidget {
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(16, (index) {
+              children: List.generate(gridBeats, (index) {
                 final isCurrent = index == currentTick;
                 final isBarStart = index % 4 == 0;
 

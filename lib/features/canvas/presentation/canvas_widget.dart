@@ -38,6 +38,10 @@ class CanvasWidget extends StatefulWidget {
   final ValueChanged<DrawnLine> onLineDeleted;
   final Function(int, DrawnLine) onNoteTriggered;
 
+  // Play Line Props
+  final bool showPlayLine;
+  final Animation<double>? playLineAnimation;
+
   const CanvasWidget({
     super.key,
     required this.musicConfig,
@@ -61,6 +65,8 @@ class CanvasWidget extends StatefulWidget {
     required this.onLineCompleted,
     required this.onLineDeleted,
     required this.onNoteTriggered,
+    this.showPlayLine = false,
+    this.playLineAnimation,
   });
 
   @override
@@ -426,6 +432,8 @@ class _CanvasWidgetState extends State<CanvasWidget> {
                       gradientStrokes: widget.showGradientOverlays
                           ? widget.gradientStrokes
                           : [],
+                      showPlayLine: widget.showPlayLine,
+                      playLineAnimation: widget.playLineAnimation,
                     ),
                   ),
                 ),
@@ -588,16 +596,31 @@ class _OverlayPainter extends CustomPainter {
   final MusicConfiguration musicConfig;
   final bool showNoteLines;
   final List<GradientStroke> gradientStrokes;
+  final bool showPlayLine;
+  final Animation<double>? playLineAnimation;
 
   _OverlayPainter({
     required this.musicConfig,
     required this.showNoteLines,
     required this.gradientStrokes,
-  });
+    required this.showPlayLine,
+    this.playLineAnimation,
+  }) : super(repaint: playLineAnimation);
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Draw Grid
+    // 0. Draw Play Line
+    if (showPlayLine && playLineAnimation != null) {
+      final x = playLineAnimation!.value * size.width;
+      final linePaint = Paint()
+        ..color = Colors.lightGreenAccent
+        ..strokeWidth = 2.0
+        ..style = PaintingStyle.stroke;
+
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), linePaint);
+    }
+
+    // Draw Grid
     if (showNoteLines && musicConfig.selectedDegrees.isNotEmpty) {
       final activeOctaves = musicConfig.getActiveOctaves();
       if (activeOctaves.isNotEmpty) {
@@ -676,6 +699,8 @@ class _OverlayPainter extends CustomPainter {
   bool shouldRepaint(covariant _OverlayPainter oldDelegate) {
     return oldDelegate.musicConfig != musicConfig ||
         oldDelegate.showNoteLines != showNoteLines ||
-        oldDelegate.gradientStrokes != gradientStrokes;
+        oldDelegate.gradientStrokes != gradientStrokes ||
+        oldDelegate.showPlayLine != showPlayLine ||
+        oldDelegate.playLineAnimation != playLineAnimation;
   }
 }

@@ -10,13 +10,13 @@ import '../../transport/presentation/transport_bar.dart';
 import '../../canvas/presentation/canvas_widget.dart';
 import '../../canvas/presentation/background_gradient_painter.dart';
 import '../../drawing/presentation/drawing_tools_pane.dart';
-import '../../drawing/presentation/gradient_tools_pane.dart';
 import '../../midi/presentation/midi_settings_pane.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:synesthesia_art_draw/features/instrument/presentation/preset_library_pane.dart';
 import 'package:synesthesia_art_draw/features/instrument/domain/instrument_preset.dart';
 import '../../instrument/presentation/instrument_settings_pane.dart';
+import '../../sequencer/presentation/sequencer_settings_pane.dart';
 import '../../settings/presentation/app_settings_pane.dart';
 import '../../toolbar/presentation/toolbar_widget.dart';
 import '../../drawing/domain/drawing_mode.dart';
@@ -31,7 +31,8 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin {
   int? _selectedPaneIndex;
   MusicConfiguration _musicConfig = MusicConfiguration();
   bool _showNoteLines = true;
@@ -61,6 +62,7 @@ class _HomePageState extends State<HomePage> {
   bool _isMetronomeOn = false;
   int _currentTick = 0; // 0-15
   Timer? _clockTimer;
+  late AnimationController _playLineController;
 
   // MIDI State
   final _midi = MidiPro();
@@ -110,6 +112,10 @@ class _HomePageState extends State<HomePage> {
     _loadSoundFont(_selectedSoundFont);
     _loadShader();
     _loadPresets();
+    _playLineController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4), // Initial default
+    );
   }
 
   Future<void> _loadShader() async {
@@ -199,6 +205,7 @@ class _HomePageState extends State<HomePage> {
         _startTimer();
       } else {
         _clockTimer?.cancel();
+        _playLineController.stop();
       }
     });
   }
@@ -208,6 +215,8 @@ class _HomePageState extends State<HomePage> {
       _isPlaying = false;
       _currentTick = 0;
       _clockTimer?.cancel();
+      _playLineController.stop();
+      _playLineController.value = 0.0;
 
       // Stop Audio
       _playerDown.stop();
@@ -234,6 +243,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _playLineController.dispose();
     _playerDown.dispose();
     _playerUp.dispose();
     super.dispose();
@@ -253,26 +263,43 @@ class _HomePageState extends State<HomePage> {
 
     final double msPerTick = 60000 / _musicConfig.tempo;
 
+    // Sync Animation Controller
+    // Loop length = gridBars * 4 beats * (60000/tempo)
+    // Actually msPerTick is 1/4 of a beat (16th note)? No, usually metronome is quarter notes?
+    // Let's assume Config Tempo is BPM (Quarter notes).
+    // Tick is... handled every "tick".
+    // Code says: `_currentTick = (_currentTick + 1) % gridBeats`.
+    // If gridBeats=16 (4 bars), and timer fires every `msPerTick`.
+    // If standard 4/4, 16 ticks = 4 bars means each tick is a beat?
+    // "dots representing 4 bars of 4... 16 beats total." -> Yes, 1 tick = 1 beat.
+
+    final totalBeats = _musicConfig.totalBeats;
+    final loopDurationMs = (msPerTick * totalBeats).round();
+
+    _playLineController.duration = Duration(milliseconds: loopDurationMs);
+    _playLineController.repeat();
+
     _clockTimer = Timer.periodic(Duration(milliseconds: msPerTick.round()), (
       timer,
     ) {
+      if (_isMetronomeOn && _currentTick % 4 == 0) {
+        final player = (_currentTick == 0) ? _playerDown : _playerUp;
+        // Re-trigger
+        player.stop().then((_) => player.resume());
+      }
+
+      // Check for line triggers
+      _checkLineTriggers();
+
       setState(() {
-        _currentTick = (_currentTick + 1) % 16;
-
-        if (_isMetronomeOn) {
-          // Fix: Re-trigger play from source every time to ensure consistent firing
-          // "Fire and Forget" strategy
-          final player = (_currentTick % 4 == 0) ? _playerDown : _playerUp;
-          final source = (_currentTick % 4 == 0)
-              ? AssetSource('metronome/Zoom ST Down .wav')
-              : AssetSource('metronome/Zoom ST UP.wav');
-
-          player.stop().then((_) {
-            player.play(source, mode: PlayerMode.lowLatency);
-          });
-        }
+        _currentTick = (_currentTick + 1) % _musicConfig.totalBeats;
       });
     });
+  }
+
+  void _checkLineTriggers() {
+    // TODO: Implement Play Line collision logic here
+    // For now, this is a placeholder to fix the build
   }
 
   // Helper to play note with duration (prevents infinite sustain)
@@ -331,10 +358,11 @@ class _HomePageState extends State<HomePage> {
   // When Tempo changes, we need to restart timer if playing
   void _updateConfig(MusicConfiguration config) {
     final bool tempoChanged = config.tempo != _musicConfig.tempo;
+    final bool barsChanged = config.gridBars != _musicConfig.gridBars;
     setState(() {
       _musicConfig = config;
     });
-    if (tempoChanged && _isPlaying) {
+    if ((tempoChanged || barsChanged) && _isPlaying) {
       _startTimer();
     }
   }
@@ -420,6 +448,11 @@ class _HomePageState extends State<HomePage> {
           onDelete: _deletePreset,
         );
       case 4:
+        return SequencerSettingsPane(
+          config: _musicConfig,
+          onConfigChanged: _updateConfig,
+        );
+      case 5:
         return AppSettingsPane(
           showNoteLines: _showNoteLines,
           onShowNoteLinesChanged: (value) {
@@ -437,6 +470,12 @@ class _HomePageState extends State<HomePage> {
     if (event is RawKeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.keyL) {
         setState(() => _currentMode = DrawingMode.line);
+      } else if (event.logicalKey == LogicalKeyboardKey.keyP) {
+        setState(
+          () => _musicConfig = _musicConfig.copyWith(
+            showPlayLine: !_musicConfig.showPlayLine,
+          ),
+        );
       } else if (event.logicalKey == LogicalKeyboardKey.keyB) {
         setState(() => _currentMode = DrawingMode.gradient);
       } else if (event.logicalKey == LogicalKeyboardKey.keyR) {
@@ -626,6 +665,7 @@ class _HomePageState extends State<HomePage> {
                 onPlayPause: _togglePlay,
                 onStop: _stop,
                 onMetronomeToggle: _toggleMetronome,
+                gridBeats: _musicConfig.totalBeats,
               ),
               Expanded(
                 child: Row(
@@ -651,11 +691,14 @@ class _HomePageState extends State<HomePage> {
                           selectedColor: _selectedLineColor,
                           triggerOnBoundary: _triggerOnBoundary,
 
+                          // Play Line Props
+                          showPlayLine: _musicConfig.showPlayLine,
+                          playLineAnimation: _playLineController,
+
                           // Brush Style Props
                           currentBrushSpread: _brushSpread,
                           currentBrushOpacity: _brushOpacity,
                           currentBristleCount: _bristleCount,
-                          currentUseNeonGlow: _useNeonGlow,
 
                           // Gradient Props
                           backgroundShader: _backgroundShader,
