@@ -70,7 +70,8 @@ class CanvasWidget extends StatefulWidget {
 class _CanvasWidgetState extends State<CanvasWidget> {
   Offset? _lastTriggerPoint;
   int? _lastTriggerNoteIndex;
-  DateTime? _lastDirectionTriggerTime;
+  // DateTime? _lastDirectionTriggerTime; // Removed in favor of Hysteresis
+  bool _isTurning = false;
   bool _isRightClick = false;
 
   void _handlePanStart(DragStartDetails details, BoxConstraints constraints) {
@@ -189,6 +190,7 @@ class _CanvasWidgetState extends State<CanvasWidget> {
       }
       _lastTriggerPoint = null;
       _lastTriggerNoteIndex = null;
+      _isTurning = false;
     }
   }
 
@@ -336,17 +338,24 @@ class _CanvasWidgetState extends State<CanvasWidget> {
 
             final diffDegrees = diff * 180 / pi;
 
-            // Debounce check (e.g. 200ms) to prevent multiple triggers for the same corner
-            final now = DateTime.now();
-            bool inDebounce =
-                _lastDirectionTriggerTime != null &&
-                now.difference(_lastDirectionTriggerTime!).inMilliseconds < 200;
+            // Hysteresis Logic:
+            // Trigger only if we are NOT currently in a "turning" state.
+            // Reset the state when the angle drops significantly (e.g. below 50% of threshold).
 
-            if (!inDebounce &&
-                diffDegrees > widget.musicConfig.directionChangeThreshold) {
-              shouldTrigger = true;
-              _lastDirectionTriggerTime = now;
-              // debugPrint("Direction Trigger! Angle: ${diffDegrees.toStringAsFixed(1)}");
+            if (!_isTurning) {
+              if (diffDegrees > widget.musicConfig.directionChangeThreshold) {
+                shouldTrigger = true;
+                _isTurning = true;
+                // debugPrint("Direction Trigger! Angle: ${diffDegrees.toStringAsFixed(1)}");
+              }
+            } else {
+              // We are already in a turn. Check if we have straightened out enough to reset.
+              // Using 50% hysteresis factor.
+              if (diffDegrees <
+                  (widget.musicConfig.directionChangeThreshold * 0.5)) {
+                _isTurning = false;
+                // debugPrint("Turn Reset. Angle: ${diffDegrees.toStringAsFixed(1)}");
+              }
             }
           }
         }
