@@ -278,29 +278,37 @@ class _HomePageState extends State<HomePage>
     final totalBeats = _musicConfig.totalBeats;
     final loopDurationMs = (msPerTick * totalBeats).round();
 
+    // Start the loop
     _playLineController.duration = Duration(milliseconds: loopDurationMs);
     _playLineController.repeat();
+
+    // Execute first tick actions immediately
+    _processTick();
 
     _clockTimer = Timer.periodic(Duration(milliseconds: msPerTick.round()), (
       timer,
     ) {
-      if (_isMetronomeOn) {
-        final isDownbeat = _currentTick % 4 == 0;
-        final player = isDownbeat ? _playerDown : _playerUp;
-        final source = isDownbeat
-            ? AssetSource('metronome/Zoom ST Down .wav')
-            : AssetSource('metronome/Zoom ST UP.wav');
-        // Use standard play() - more reliable for one-shots
-        player.play(source);
-      }
-
-      // Check for line triggers
-      _checkLineTriggers();
-
+      if (!mounted) return;
       setState(() {
         _currentTick = (_currentTick + 1) % _musicConfig.totalBeats;
       });
+      _processTick();
     });
+  }
+
+  void _processTick() {
+    if (_isMetronomeOn) {
+      final isDownbeat = _currentTick % 4 == 0;
+      final player = isDownbeat ? _playerDown : _playerUp;
+      final source = isDownbeat
+          ? AssetSource('metronome/Zoom ST Down .wav')
+          : AssetSource('metronome/Zoom ST UP.wav');
+      // Use standard play() - more reliable for one-shots
+      player.play(source);
+    }
+
+    // Check for line triggers
+    _checkLineTriggers();
   }
 
   void _checkLineTriggers() {
