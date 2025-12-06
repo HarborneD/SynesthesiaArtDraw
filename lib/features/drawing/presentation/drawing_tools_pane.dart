@@ -74,46 +74,51 @@ class _DrawingToolsPaneState extends State<DrawingToolsPane> {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Drawing Tools',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          _buildToolSection(),
-          const Divider(height: 30),
-          const Divider(height: 30),
-
-          if (widget.currentMode == DrawingMode.line) ...[
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             const Text(
-              'Line Color',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              'Drawing Tools',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 10),
-            _buildColorSelector(),
-            const Divider(height: 30),
-          ],
+            const SizedBox(height: 20),
+            _buildToolSection(),
 
-          _buildSettingsSection(),
-
-          if (widget.currentMode == DrawingMode.gradient) ...[
-            const Divider(height: 30),
-            const Text(
-              'Gradient Fields',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: GradientToolsPane(
-                strokes: widget.gradientStrokes,
-                onStrokeUpdated: widget.onStrokeUpdated!,
-                onStrokeDeleted: widget.onStrokeDeleted!,
+            // Divider removed (was possibly duplicate or unnecessary if section is hidden)
+            if (widget.currentMode == DrawingMode.line) ...[
+              const Divider(height: 30),
+              const Text(
+                'Line Color',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-            ),
+              const SizedBox(height: 10),
+              _buildColorSelector(),
+              const Divider(height: 30),
+            ],
+
+            _buildSettingsSection(),
+
+            if (widget.currentMode == DrawingMode.gradient) ...[
+              const Divider(height: 30),
+              const Text(
+                'Gradient Fields',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                // Use SizedBox for fixed height content inside ScrollView if needed, or LayoutBuilder
+                height:
+                    300, // Give it a fixed height for now as Expanded won't work in ScrollView
+                child: GradientToolsPane(
+                  strokes: widget.gradientStrokes,
+                  onStrokeUpdated: widget.onStrokeUpdated!,
+                  onStrokeDeleted: widget.onStrokeDeleted!,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -124,16 +129,27 @@ class _DrawingToolsPaneState extends State<DrawingToolsPane> {
       children: [
         const Text('Mode', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
+        // Mode Buttons in a single row
+        Row(
           children: [
-            _buildModeButton(DrawingMode.line, Icons.edit, 'Line'),
-            _buildModeButton(DrawingMode.gradient, Icons.gradient, 'Gradient'),
-            _buildModeButton(
-              DrawingMode.erase,
-              Icons.cleaning_services,
-              'Erase',
+            Expanded(
+              child: _buildModeButton(DrawingMode.line, Icons.edit, 'Line'),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildModeButton(
+                DrawingMode.gradient,
+                Icons.gradient,
+                'Gradient',
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildModeButton(
+                DrawingMode.erase,
+                Icons.cleaning_services,
+                'Erase',
+              ),
             ),
           ],
         ),
@@ -160,12 +176,16 @@ class _DrawingToolsPaneState extends State<DrawingToolsPane> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SwitchListTile(
-          title: const Text("Trigger on Note Boundary"),
-          subtitle: const Text("Play sound when line crosses notes"),
-          value: widget.triggerOnBoundary,
-          onChanged: widget.onTriggerOnBoundaryChanged,
-          contentPadding: EdgeInsets.zero,
+        // Compact Trigger Toggle
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text("Boundary-Crossing Notes"),
+            Switch(
+              value: widget.triggerOnBoundary,
+              onChanged: widget.onTriggerOnBoundaryChanged,
+            ),
+          ],
         ),
         const Divider(),
         _buildSlider(
