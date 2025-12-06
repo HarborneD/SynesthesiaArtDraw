@@ -21,6 +21,10 @@ class DrawingToolsPane extends StatefulWidget {
   final Color selectedColor;
   final ValueChanged<Color>? onColorChanged;
 
+  // Trigger Props
+  final bool triggerOnBoundary;
+  final ValueChanged<bool>? onTriggerOnBoundaryChanged;
+
   const DrawingToolsPane({
     super.key,
     required this.currentMode,
@@ -35,6 +39,8 @@ class DrawingToolsPane extends StatefulWidget {
     this.onStrokeDeleted,
     this.selectedColor = Colors.black,
     this.onColorChanged,
+    this.triggerOnBoundary = false,
+    this.onTriggerOnBoundaryChanged,
   });
 
   @override
@@ -129,23 +135,32 @@ class _DrawingToolsPaneState extends State<DrawingToolsPane> {
   }
 
   Widget _buildSettingsSection() {
+    if (widget.currentMode != DrawingMode.line) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
+        SwitchListTile(
+          title: const Text("Trigger on Note Boundary"),
+          subtitle: const Text("Play sound when line crosses notes"),
+          value: widget.triggerOnBoundary,
+          onChanged: widget.onTriggerOnBoundaryChanged,
+          contentPadding: EdgeInsets.zero,
+        ),
+        const Divider(),
         _buildSlider(
-          'Segment Length',
+          'Segment Length (Collision)',
           widget.segmentLength,
-          10,
-          500,
+          10.0,
+          200.0,
           widget.onSegmentLengthChanged,
         ),
+        const SizedBox(height: 10),
         _buildSlider(
-          'Min Pixels',
+          'Min Pixels (Drawing Precision)',
           widget.minPixels,
-          1,
-          50,
+          1.0,
+          10.0,
           widget.onMinPixelsChanged,
         ),
       ],

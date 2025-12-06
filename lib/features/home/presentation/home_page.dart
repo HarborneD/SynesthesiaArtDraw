@@ -38,6 +38,7 @@ class _HomePageState extends State<HomePage> {
   List<DrawnLine> _lines = [];
   DrawnLine? _currentLine;
   Color _selectedLineColor = Colors.black; // Default line color
+  bool _triggerOnBoundary = false; // Default off
 
   // Gradient State
   List<GradientStroke> _gradientStrokes = [];
@@ -296,6 +297,10 @@ class _HomePageState extends State<HomePage> {
           onMinPixelsChanged: (val) => setState(() => _minPixels = val),
           onClearAll: _clearAll,
 
+          triggerOnBoundary: _triggerOnBoundary,
+          onTriggerOnBoundaryChanged: (val) =>
+              setState(() => _triggerOnBoundary = val),
+
           // Color Props
           selectedColor: _selectedLineColor,
           onColorChanged: (color) => setState(() => _selectedLineColor = color),
@@ -479,6 +484,7 @@ class _HomePageState extends State<HomePage> {
                           currentLine: _currentLine,
                           drawingMode: _currentMode,
                           selectedColor: _selectedLineColor,
+                          triggerOnBoundary: _triggerOnBoundary,
 
                           // Gradient Props
                           backgroundShader: _backgroundShader,

@@ -17,6 +17,7 @@ class CanvasWidget extends StatefulWidget {
   final DrawnLine? currentLine;
   final DrawingMode drawingMode;
   final Color selectedColor;
+  final bool triggerOnBoundary;
 
   // Gradient Props
   final ui.FragmentShader? backgroundShader;
@@ -39,6 +40,7 @@ class CanvasWidget extends StatefulWidget {
     this.currentLine,
     required this.drawingMode,
     this.selectedColor = Colors.black,
+    this.triggerOnBoundary = false,
     this.backgroundShader,
     this.gradientStrokes = const [],
     this.onGradientStrokeAdded,
@@ -237,12 +239,16 @@ class _CanvasWidgetState extends State<CanvasWidget> {
 
     bool shouldTrigger = forceTrigger;
 
-    // 1. Check Boundary Crossing
-    if (_lastTriggerNoteIndex != null && _lastTriggerNoteIndex != noteIndex) {
-      shouldTrigger = true;
+    // 2. Note Boundary Crossing
+    // Only check if toggle is ON
+    if (widget.triggerOnBoundary &&
+        _lastTriggerNoteIndex != null &&
+        _lastTriggerNoteIndex != noteIndex) {
+      if (noteIndex != -1) {
+        shouldTrigger = true;
+      }
     }
-
-    // 2. Check Segment Length
+    // 3. Check Segment Length
     if (_lastTriggerPoint != null) {
       final distance = (currentPoint - _lastTriggerPoint!).distance;
       if (distance >= widget.segmentLength) {
