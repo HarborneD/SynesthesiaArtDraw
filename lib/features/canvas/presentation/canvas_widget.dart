@@ -7,6 +7,7 @@ import '../../drawing/domain/gradient_stroke.dart';
 import '../../canvas/presentation/background_gradient_painter.dart';
 
 import '../../drawing/domain/drawing_mode.dart';
+import 'line_painter_utils.dart';
 
 class CanvasWidget extends StatefulWidget {
   final MusicConfiguration musicConfig;
@@ -320,30 +321,61 @@ class _LinesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     for (final line in lines) {
-      _drawLine(canvas, line);
+      if (line.path.isEmpty) continue;
+
+      // 1. Draw Glow (Behind)
+      final glowPaint = Paint()
+        ..color = line.color.withOpacity(0.6)
+        ..strokeWidth =
+            line.width *
+            4 // Wider for glow
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke
+        ..maskFilter = const MaskFilter.blur(
+          BlurStyle.normal,
+          8.0,
+        ); // Blur effect
+
+      // Generate smooth path
+      final points = line.path.map((p) => p.point).toList();
+      final path = LinePainterUtils.generateSmoothPath(points);
+
+      canvas.drawPath(path, glowPaint);
+
+      // 2. Draw Core (Front)
+      final corePaint = Paint()
+        ..color = line.color
+        ..strokeWidth = line.width
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
+
+      canvas.drawPath(path, corePaint);
     }
+
+    // Draw active line
     if (currentLine != null) {
-      _drawLine(canvas, currentLine!);
+      if (currentLine!.path.isEmpty) return;
+      // Glow
+      final glowPaint = Paint()
+        ..color = currentLine!.color.withOpacity(0.6)
+        ..strokeWidth = currentLine!.width * 4
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8.0);
+
+      final points = currentLine!.path.map((p) => p.point).toList();
+      final path = LinePainterUtils.generateSmoothPath(points);
+      canvas.drawPath(path, glowPaint);
+
+      // Core
+      final corePaint = Paint()
+        ..color = currentLine!.color
+        ..strokeWidth = currentLine!.width
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
+
+      canvas.drawPath(path, corePaint);
     }
-  }
-
-  void _drawLine(Canvas canvas, DrawnLine line) {
-    if (line.path.isEmpty) return;
-
-    final paint = Paint()
-      ..color = line.color
-      ..strokeWidth = line.width
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final path = Path();
-    path.moveTo(line.path.first.point.dx, line.path.first.point.dy);
-
-    for (int i = 1; i < line.path.length; i++) {
-      path.lineTo(line.path[i].point.dx, line.path[i].point.dy);
-    }
-
-    canvas.drawPath(path, paint);
   }
 
   @override
