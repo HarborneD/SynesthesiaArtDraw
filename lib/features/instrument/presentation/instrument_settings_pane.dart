@@ -6,6 +6,12 @@ class InstrumentSettingsPane extends StatefulWidget {
   final int selectedInstrumentIndex;
   final ValueChanged<int> onInstrumentChanged;
   final List<String> availableSoundFonts;
+  final bool isReverbOn;
+  final ValueChanged<bool> onReverbChanged;
+  final double reverbDelay;
+  final ValueChanged<double> onReverbDelayChanged;
+  final double reverbDecay;
+  final ValueChanged<double> onReverbDecayChanged;
 
   const InstrumentSettingsPane({
     super.key,
@@ -14,6 +20,12 @@ class InstrumentSettingsPane extends StatefulWidget {
     required this.selectedInstrumentIndex,
     required this.onInstrumentChanged,
     required this.availableSoundFonts,
+    required this.isReverbOn,
+    required this.onReverbChanged,
+    required this.reverbDelay,
+    required this.onReverbDelayChanged,
+    required this.reverbDecay,
+    required this.onReverbDecayChanged,
   });
 
   @override
@@ -86,6 +98,36 @@ class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
               );
             }),
           ),
+          const SizedBox(height: 20),
+          const Divider(),
+          SwitchListTile(
+            title: const Text('Reverb / Delay'),
+            subtitle: const Text('Add echo to notes'),
+            value: widget.isReverbOn,
+            onChanged: widget.onReverbChanged,
+          ),
+          if (widget.isReverbOn) ...[
+            const SizedBox(height: 10),
+            Text('Delay Time: ${widget.reverbDelay.toInt()} ms'),
+            Slider(
+              value: widget.reverbDelay,
+              min: 50,
+              max: 500,
+              divisions: 45,
+              label: '${widget.reverbDelay.toInt()} ms',
+              onChanged: widget.onReverbDelayChanged,
+            ),
+            const SizedBox(height: 10),
+            Text('Decay (Feedback): ${(widget.reverbDecay * 100).toInt()}%'),
+            Slider(
+              value: widget.reverbDecay,
+              min: 0.1,
+              max: 0.9,
+              divisions: 8,
+              label: '${(widget.reverbDecay * 100).toInt()}%',
+              onChanged: widget.onReverbDecayChanged,
+            ),
+          ],
         ],
       ),
     );

@@ -37,8 +37,8 @@ class _HomePageState extends State<HomePage> {
   double _minPixels = 1.0;
   List<DrawnLine> _lines = [];
   DrawnLine? _currentLine;
-  Color _selectedLineColor = Colors.black; // Default line color
-  bool _triggerOnBoundary = false; // Default off
+  Color _selectedLineColor = Colors.teal; // Default line color (9th)
+  bool _triggerOnBoundary = true; // Default ON
 
   // Brush Customization
   double _brushSpread = 8.0;
@@ -61,6 +61,9 @@ class _HomePageState extends State<HomePage> {
   // MIDI State
   final _midi = MidiPro();
   bool _isMidiInitialized = false;
+  bool _isReverbOn = false;
+  double _reverbDelay = 150.0; // Default 150ms
+  double _reverbDecay = 0.5; // Default 50% decay
   String _selectedSoundFont = 'White Grand Piano II.sf2'; // Default
   int _selectedInstrumentIndex = 0;
   int _sfId = 0;
@@ -217,6 +220,12 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  void _toggleReverb() {
+    setState(() {
+      _isReverbOn = !_isReverbOn;
+    });
+  }
+
   @override
   void dispose() {
     _clockTimer?.cancel();
@@ -227,7 +236,7 @@ class _HomePageState extends State<HomePage> {
 
   void _clearAll() {
     setState(() {
-      _lines.clear();
+      _lines = []; // Assign new list to trigger RepaintBoundary
       _currentLine = null;
       _gradientStrokes.clear();
     });
@@ -274,6 +283,43 @@ class _HomePageState extends State<HomePage> {
 
     Future.delayed(Duration(milliseconds: durationMs), () {
       _midi.stopNote(key: note, channel: 0, sfId: sfId);
+    });
+
+    if (_isReverbOn) {
+      _triggerReverb(note, velocity, durationMs, sfId);
+    }
+  }
+
+  void _triggerReverb(int note, int velocity, int durationMs, int sfId) {
+    // Dynamic Echo Logic
+    int delayMs = _reverbDelay.toInt();
+
+    // Echo 1
+    Future.delayed(Duration(milliseconds: delayMs), () {
+      if (!mounted) return;
+      _midi.playNote(
+        key: note,
+        velocity: (velocity * _reverbDecay).toInt(),
+        channel: 0,
+        sfId: sfId,
+      );
+      Future.delayed(Duration(milliseconds: durationMs), () {
+        _midi.stopNote(key: note, channel: 0, sfId: sfId);
+      });
+    });
+
+    // Echo 2 (2x delay, decay^2)
+    Future.delayed(Duration(milliseconds: delayMs * 2), () {
+      if (!mounted) return;
+      _midi.playNote(
+        key: note,
+        velocity: (velocity * _reverbDecay * _reverbDecay).toInt(),
+        channel: 0,
+        sfId: sfId,
+      );
+      Future.delayed(Duration(milliseconds: durationMs), () {
+        _midi.stopNote(key: note, channel: 0, sfId: sfId);
+      });
     });
   }
 
@@ -338,6 +384,12 @@ class _HomePageState extends State<HomePage> {
       case 2:
         return InstrumentSettingsPane(
           availableSoundFonts: _soundFonts,
+          isReverbOn: _isReverbOn,
+          onReverbChanged: (val) => setState(() => _isReverbOn = val),
+          reverbDelay: _reverbDelay,
+          onReverbDelayChanged: (val) => setState(() => _reverbDelay = val),
+          reverbDecay: _reverbDecay,
+          onReverbDecayChanged: (val) => setState(() => _reverbDecay = val),
           selectedSoundFont: _selectedSoundFont,
           onSoundFontChanged: (val) async {
             if (val != _selectedSoundFont) {
@@ -371,6 +423,8 @@ class _HomePageState extends State<HomePage> {
         setState(() => _currentMode = DrawingMode.line);
       } else if (event.logicalKey == LogicalKeyboardKey.keyB) {
         setState(() => _currentMode = DrawingMode.gradient);
+      } else if (event.logicalKey == LogicalKeyboardKey.keyR) {
+        _toggleReverb();
       } else if (event.logicalKey == LogicalKeyboardKey.keyE) {
         setState(() => _currentMode = DrawingMode.erase);
       } else if (event.logicalKey == LogicalKeyboardKey.keyG) {
@@ -540,7 +594,8 @@ class _HomePageState extends State<HomePage> {
                               useNeonGlow: _useNeonGlow,
                             );
 
-                            _lines.add(stampedLine);
+                            // Create NEW list instance to trigger RepaintBoundary in CanvasWidget
+                            _lines = List.from(_lines)..add(stampedLine);
                             _currentLine = null;
                             if (_isSustainOn && _currentMidiNote != -1) {
                               // Stop active note
@@ -557,7 +612,8 @@ class _HomePageState extends State<HomePage> {
                             }
                           }),
                           onLineDeleted: (line) => setState(() {
-                            _lines.remove(line);
+                            // Create NEW list instance to trigger RepaintBoundary
+                            _lines = List.from(_lines)..remove(line);
                             // Stop if it was the triggering note (logic assumption)
                             if (_isSustainOn && _currentMidiNote != -1) {
                               int stopSfId = (_currentMidiNoteSfId != -1)
@@ -637,6 +693,18 @@ class _HomePageState extends State<HomePage> {
                                 );
                                 _currentMidiNote = midiNote;
                                 _currentMidiNoteSfId = targetSfId;
+
+                                if (_isReverbOn) {
+                                  // For sustain mode, we just trigger the echoes as "one shots"
+                                  // They will fade out naturally via envelope or we stop them?
+                                  // Standard piano doesn't sustain infinite, but let's give echoes a duration.
+                                  _triggerReverb(
+                                    midiNote,
+                                    127,
+                                    400,
+                                    targetSfId,
+                                  );
+                                }
                               } else {
                                 // Use helper for duration to prevent infinite sustain
                                 _playNoteWithDuration(

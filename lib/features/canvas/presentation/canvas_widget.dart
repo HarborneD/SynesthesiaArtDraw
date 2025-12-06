@@ -391,24 +391,45 @@ class _CanvasWidgetState extends State<CanvasWidget> {
             color: Colors.white,
             width: double.infinity,
             height: double.infinity,
-            child: CustomPaint(
-              painter: BackgroundGradientPainter(
-                shader: widget.backgroundShader,
-                strokes: widget.gradientStrokes,
-              ),
-              foregroundPainter: _OverlayPainter(
-                musicConfig: widget.musicConfig,
-                showNoteLines: widget.showNoteLines,
-                gradientStrokes: widget.showGradientOverlays
-                    ? widget.gradientStrokes
-                    : [],
-              ),
-              child: CustomPaint(
-                painter: _LinesPainter(
-                  lines: widget.lines,
-                  currentLine: widget.currentLine,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // 1. Background Layer (Cached)
+                RepaintBoundary(
+                  child: CustomPaint(
+                    painter: BackgroundGradientPainter(
+                      shader: widget.backgroundShader,
+                      strokes: widget.gradientStrokes,
+                    ),
+                  ),
                 ),
-              ),
+
+                // 2. Completed Lines Layer (Cached)
+                // This is the heavy one. We cache it so we don't redraw 100s of bristles per frame.
+                RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _CompletedLinesPainter(lines: widget.lines),
+                  ),
+                ),
+
+                // 3. Active Line Layer (Not Cached - Dynamic)
+                CustomPaint(
+                  painter: _ActiveLinePainter(currentLine: widget.currentLine),
+                ),
+
+                // 4. Overlay/Grid Layer (Cached)
+                RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _OverlayPainter(
+                      musicConfig: widget.musicConfig,
+                      showNoteLines: widget.showNoteLines,
+                      gradientStrokes: widget.showGradientOverlays
+                          ? widget.gradientStrokes
+                          : [],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -417,129 +438,149 @@ class _CanvasWidgetState extends State<CanvasWidget> {
   }
 }
 
-class _LinesPainter extends CustomPainter {
+class _CompletedLinesPainter extends CustomPainter {
   final List<DrawnLine> lines;
-  final DrawnLine? currentLine;
 
-  _LinesPainter({required this.lines, required this.currentLine});
+  _CompletedLinesPainter({required this.lines});
 
   @override
   void paint(Canvas canvas, Size size) {
     for (final line in lines) {
       if (line.path.isEmpty) continue;
+      _drawLine(canvas, line);
+    }
+  }
 
-      // Generate smooth path
-      final points = line.path.map((p) => p.point).toList();
-      final path = LinePainterUtils.generateSmoothPath(points);
+  void _drawLine(Canvas canvas, DrawnLine line) {
+    // Generate smooth path
+    final points = line.path.map((p) => p.point).toList();
+    final path = LinePainterUtils.generateSmoothPath(points);
 
-      // 1. Draw Glow (Behind) - Optional
-      if (line.useNeonGlow) {
-        final glowPaint = Paint()
-          ..color = line.color.withOpacity(0.6)
-          ..strokeWidth =
-              line.width *
-              4 // Wider for glow
-          ..strokeCap = StrokeCap.round
-          ..style = PaintingStyle.stroke
-          ..maskFilter = const MaskFilter.blur(
-            BlurStyle.normal,
-            8.0,
-          ); // Blur effect
+    // 1. Draw Glow (Behind) - Optional
+    if (line.useNeonGlow) {
+      final glowPaint = Paint()
+        ..color = line.color.withOpacity(0.6)
+        ..strokeWidth =
+            line.width *
+            4 // Wider for glow
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke
+        ..maskFilter = const MaskFilter.blur(
+          BlurStyle.normal,
+          8.0,
+        ); // Blur effect
 
-        canvas.drawPath(path, glowPaint);
-      }
-
-      // 2. Draw Bristles (Paint Brush Effect)
-      // Use the line's ID hash as a seed for stable randomness
-      final random = Random(line.id.hashCode);
-      final bristleCount = line.bristleCount; // Use line's count
-      final baseWidth = line.width;
-      final spread = line.spread;
-
-      // Draw multiple passes with varying offsets and opacity
-      for (int i = 0; i < bristleCount; i++) {
-        final offsetX = (random.nextDouble() - 0.5) * baseWidth * spread;
-        final offsetY = (random.nextDouble() - 0.5) * baseWidth * spread;
-        final opacity = 0.3 + (random.nextDouble() * 0.5); // 0.3 to 0.8
-
-        // Scale opacity by line's opacity setting
-        final finalOpacity = (opacity * line.opacity).clamp(0.0, 1.0);
-
-        final bristlePaint = Paint()
-          ..color = line.color.withOpacity(finalOpacity)
-          ..strokeWidth = max(1.0, baseWidth / 3)
-          ..strokeCap = StrokeCap.round
-          ..style = PaintingStyle.stroke;
-
-        canvas.save();
-        canvas.translate(offsetX, offsetY);
-        canvas.drawPath(path, bristlePaint);
-        canvas.restore();
-      }
-
-      // Optional: Draw a thin core?
-      // Only draw core if opacity is high enough, else it ruins "dry" look.
-      if (line.opacity > 0.8) {
-        final corePaint = Paint()
-          ..color = line.color.withOpacity(0.3)
-          ..strokeWidth = line.width
-          ..strokeCap = StrokeCap.round
-          ..style = PaintingStyle.stroke;
-
-        canvas.drawPath(path, corePaint);
-      }
+      canvas.drawPath(path, glowPaint);
     }
 
-    // Draw active line
-    if (currentLine != null) {
-      if (currentLine!.path.isEmpty) return;
-      // Active line: Draw simpler for performance, or full effect?
-      // Detailed effect is fine for one line.
-      final path = LinePainterUtils.generateSmoothPath(
-        currentLine!.path.map((p) => p.point).toList(),
-      );
+    // 2. Draw Bristles (Paint Brush Effect)
+    // Use the line's ID hash as a seed for stable randomness
+    final random = Random(line.id.hashCode);
+    final bristleCount = line.bristleCount; // Use line's count
+    final baseWidth = line.width;
+    final spread = line.spread;
 
-      // Glow - Optional
-      if (currentLine!.useNeonGlow) {
-        final glowPaint = Paint()
-          ..color = currentLine!.color.withOpacity(0.6)
-          ..strokeWidth = currentLine!.width * 4
-          ..strokeCap = StrokeCap.round
-          ..style = PaintingStyle.stroke
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8.0);
+    // Draw multiple passes with varying offsets and opacity
+    for (int i = 0; i < bristleCount; i++) {
+      final offsetX = (random.nextDouble() - 0.5) * baseWidth * spread;
+      final offsetY = (random.nextDouble() - 0.5) * baseWidth * spread;
+      final opacity = 0.3 + (random.nextDouble() * 0.5); // 0.3 to 0.8
 
-        canvas.drawPath(path, glowPaint);
-      }
+      // Scale opacity by line's opacity setting
+      final finalOpacity = (opacity * line.opacity).clamp(0.0, 1.0);
 
-      final random = Random(currentLine!.id.hashCode);
-      final bristleCount = currentLine!.bristleCount;
-      final baseWidth = currentLine!.width;
-      final spread = currentLine!.spread;
+      final bristlePaint = Paint()
+        ..color = line.color.withOpacity(finalOpacity)
+        ..strokeWidth = max(1.0, baseWidth / 3)
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
 
-      for (int i = 0; i < bristleCount; i++) {
-        final offsetX = (random.nextDouble() - 0.5) * baseWidth * spread;
-        final offsetY = (random.nextDouble() - 0.5) * baseWidth * spread;
-        final opacity = 0.3 + (random.nextDouble() * 0.5);
+      canvas.save();
+      canvas.translate(offsetX, offsetY);
+      canvas.drawPath(path, bristlePaint);
+      canvas.restore();
+    }
 
-        final finalOpacity = (opacity * currentLine!.opacity).clamp(0.0, 1.0);
+    // Optional: Draw a thin core?
+    // Only draw core if opacity is high enough, else it ruins "dry" look.
+    if (line.opacity > 0.8) {
+      final corePaint = Paint()
+        ..color = line.color.withOpacity(0.3)
+        ..strokeWidth = line.width
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
 
-        final bristlePaint = Paint()
-          ..color = currentLine!.color.withOpacity(finalOpacity)
-          ..strokeWidth = max(1.0, baseWidth / 3)
-          ..strokeCap = StrokeCap.round
-          ..style = PaintingStyle.stroke;
-
-        canvas.save();
-        canvas.translate(offsetX, offsetY);
-        canvas.drawPath(path, bristlePaint);
-        canvas.restore();
-      }
+      canvas.drawPath(path, corePaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _LinesPainter oldDelegate) {
-    return true; // Optimize later
+  bool shouldRepaint(covariant _CompletedLinesPainter oldDelegate) {
+    // Only repaint if the lines list changes (reference or length)
+    // Deep comparison is expensive, so we rely on reference + length + immutability convention.
+    // Ideally we should use a stronger check, but for now length check helps.
+    // Also check if any property of last line changed?
+    // Since we add lines immutably, reference check on list might be false if list is mutated.
+    // The parent passes `widget.lines`. If it changes, we repaint.
+    return oldDelegate.lines != lines ||
+        oldDelegate.lines.length != lines.length;
+  }
+}
+
+class _ActiveLinePainter extends CustomPainter {
+  final DrawnLine? currentLine;
+
+  _ActiveLinePainter({required this.currentLine});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (currentLine != null && currentLine!.path.isNotEmpty) {
+      _drawLine(canvas, currentLine!);
+    }
+  }
+
+  void _drawLine(Canvas canvas, DrawnLine line) {
+    // Duplicated logic for now to keep isolated. Could refactor to Mixin.
+    final points = line.path.map((p) => p.point).toList();
+    final path = LinePainterUtils.generateSmoothPath(points);
+
+    if (line.useNeonGlow) {
+      final glowPaint = Paint()
+        ..color = line.color.withOpacity(0.6)
+        ..strokeWidth = line.width * 4
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8.0);
+      canvas.drawPath(path, glowPaint);
+    }
+
+    final random = Random(line.id.hashCode);
+    final bristleCount = line.bristleCount;
+    final baseWidth = line.width;
+    final spread = line.spread;
+
+    for (int i = 0; i < bristleCount; i++) {
+      final offsetX = (random.nextDouble() - 0.5) * baseWidth * spread;
+      final offsetY = (random.nextDouble() - 0.5) * baseWidth * spread;
+      final opacity = 0.3 + (random.nextDouble() * 0.5);
+      final finalOpacity = (opacity * line.opacity).clamp(0.0, 1.0);
+
+      final bristlePaint = Paint()
+        ..color = line.color.withOpacity(finalOpacity)
+        ..strokeWidth = max(1.0, baseWidth / 3)
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
+
+      canvas.save();
+      canvas.translate(offsetX, offsetY);
+      canvas.drawPath(path, bristlePaint);
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ActiveLinePainter oldDelegate) {
+    return true; // Always repaint active line
   }
 }
 
