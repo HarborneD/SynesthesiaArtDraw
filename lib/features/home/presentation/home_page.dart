@@ -54,7 +54,7 @@ class _HomePageState extends State<HomePage> {
   // MIDI State
   final _midi = MidiPro();
   bool _isMidiInitialized = false;
-  String _selectedSoundFont = 'Dystopian Terra.sf2'; // Default
+  String _selectedSoundFont = 'White Grand Piano II.sf2'; // Default
   int _selectedInstrumentIndex = 0;
   int _sfId = 0;
 
