@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 
-class AppSettingsPane extends StatelessWidget {
+class AppSettingsPane extends StatefulWidget {
   const AppSettingsPane({super.key});
+
+  @override
+  State<AppSettingsPane> createState() => _AppSettingsPaneState();
+}
+
+class _AppSettingsPaneState extends State<AppSettingsPane> {
+  // Octaves and Scale moved to MidiSettingsPane
 
   @override
   Widget build(BuildContext context) {
@@ -13,7 +20,8 @@ class AppSettingsPane extends StatelessWidget {
         children: [
           Text('App Settings', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 20),
-          const Text('General application settings will go here.'),
+          const Text('Global application settings.'),
+          // Add other global settings here as needed
         ],
       ),
     );

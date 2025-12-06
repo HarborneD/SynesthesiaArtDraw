@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:synesthesia_art_draw/core/presentation/layout/split_layout.dart';
 import 'package:synesthesia_art_draw/features/canvas/presentation/canvas_widget.dart';
+import 'package:synesthesia_art_draw/features/drawing/domain/drawing_mode.dart';
 import 'package:synesthesia_art_draw/features/drawing/presentation/drawing_tools_pane.dart';
 import 'package:synesthesia_art_draw/features/instrument/presentation/instrument_settings_pane.dart';
 import 'package:synesthesia_art_draw/features/midi/presentation/midi_settings_pane.dart';
@@ -16,11 +17,19 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int? _selectedPaneIndex;
+  DrawingMode _currentMode = DrawingMode.line;
 
   Widget? _getPane(int? index) {
     switch (index) {
       case 0:
-        return const DrawingToolsPane();
+        return DrawingToolsPane(
+          currentMode: _currentMode,
+          onModeChanged: (mode) {
+            setState(() {
+              _currentMode = mode;
+            });
+          },
+        );
       case 1:
         return const MidiSettingsPane();
       case 2:
