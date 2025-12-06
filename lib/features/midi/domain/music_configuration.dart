@@ -45,7 +45,19 @@ class MusicConfiguration {
     this.selectedScale = 'Minor',
     List<String>? selectedDegrees,
     this.directionChangeThreshold = 90.0,
-  }) : selectedDegrees = selectedDegrees ?? getDegreesInScale('A', 'Minor');
+  }) : selectedDegrees = selectedDegrees ?? _getDefaultDegrees();
+
+  static List<String> _getDefaultDegrees() {
+    final fullScale = getDegreesInScale('A', 'Minor');
+    // Default Filter: Remove 2nd (index 1), 6th (index 5), 7th (index 6)
+    // Degrees: 1, 2, 3, 4, 5, 6, 7
+    // Indices: 0, 1, 2, 3, 4, 5, 6
+    // Keep: 0, 2, 3, 4
+    if (fullScale.length >= 7) {
+      return [fullScale[0], fullScale[2], fullScale[3], fullScale[4]];
+    }
+    return fullScale;
+  }
 
   MusicConfiguration copyWith({
     double? octaves,

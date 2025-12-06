@@ -33,7 +33,7 @@ class _HomePageState extends State<HomePage> {
   bool _showNoteLines = true;
 
   // Drawing State
-  double _segmentLength = 100.0;
+  double _segmentLength = 200.0;
   double _minPixels = 1.0;
   List<DrawnLine> _lines = [];
   DrawnLine? _currentLine;
@@ -41,9 +41,9 @@ class _HomePageState extends State<HomePage> {
   bool _triggerOnBoundary = false; // Default off
 
   // Brush Customization
-  double _brushSpread = 2.0;
+  double _brushSpread = 8.0;
   double _brushOpacity = 0.5;
-  int _bristleCount = 8;
+  int _bristleCount = 20;
   bool _useNeonGlow = true;
 
   // Gradient State
