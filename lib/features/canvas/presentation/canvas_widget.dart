@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../midi/domain/music_configuration.dart';
 import '../../drawing/domain/drawn_line.dart';
 
+import '../../drawing/domain/drawing_mode.dart';
+
 class CanvasWidget extends StatefulWidget {
   final MusicConfiguration musicConfig;
   final bool showNoteLines;
@@ -9,8 +11,10 @@ class CanvasWidget extends StatefulWidget {
   final double minPixels;
   final List<DrawnLine> lines;
   final DrawnLine? currentLine;
+  final DrawingMode drawingMode;
   final ValueChanged<DrawnLine> onCurrentLineUpdated;
   final ValueChanged<DrawnLine> onLineCompleted;
+  final ValueChanged<DrawnLine> onLineDeleted;
   final ValueChanged<int> onNoteTriggered;
 
   const CanvasWidget({
@@ -21,8 +25,10 @@ class CanvasWidget extends StatefulWidget {
     required this.minPixels,
     required this.lines,
     required this.currentLine,
+    required this.drawingMode,
     required this.onCurrentLineUpdated,
     required this.onLineCompleted,
+    required this.onLineDeleted,
     required this.onNoteTriggered,
   });
 
@@ -35,6 +41,11 @@ class _CanvasWidgetState extends State<CanvasWidget> {
   int? _lastTriggerNoteIndex;
 
   void _handlePanStart(DragStartDetails details, BoxConstraints constraints) {
+    if (widget.drawingMode == DrawingMode.erase) {
+      _handleErase(details.localPosition);
+      return;
+    }
+
     final point = DrawingPoint(point: details.localPosition);
     final newLine = DrawnLine(path: [point], width: 2.0, color: Colors.black);
 
@@ -49,6 +60,11 @@ class _CanvasWidgetState extends State<CanvasWidget> {
   }
 
   void _handlePanUpdate(DragUpdateDetails details, BoxConstraints constraints) {
+    if (widget.drawingMode == DrawingMode.erase) {
+      _handleErase(details.localPosition);
+      return;
+    }
+
     if (widget.currentLine == null) {
       return;
     }
@@ -68,10 +84,30 @@ class _CanvasWidgetState extends State<CanvasWidget> {
   }
 
   void _handlePanEnd(DragEndDetails details) {
+    if (widget.drawingMode == DrawingMode.erase) return;
+
     if (widget.currentLine != null) {
       widget.onLineCompleted(widget.currentLine!);
       _lastTriggerPoint = null;
       _lastTriggerNoteIndex = null;
+    }
+  }
+
+  void _handleSecondaryTapUp(TapUpDetails details) {
+    // Right click always erases
+    _handleErase(details.localPosition);
+  }
+
+  void _handleErase(Offset position) {
+    const double eraseThreshold = 20.0;
+
+    for (final line in widget.lines) {
+      for (final point in line.path) {
+        if ((point.point - position).distance <= eraseThreshold) {
+          widget.onLineDeleted(line);
+          return; // Delete first match only
+        }
+      }
     }
   }
 
@@ -84,7 +120,9 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     if (activeOctaves.isEmpty) return;
 
     final degreesCount = widget.musicConfig.selectedDegrees.length;
-    final totalNotes = activeOctaves.length * degreesCount;
+    final activeOctavesCount =
+        activeOctaves.length; // renamed to avoid conflict
+    final totalNotes = activeOctavesCount * degreesCount;
     if (totalNotes == 0) return;
 
     final noteHeight = height / totalNotes;
@@ -128,6 +166,7 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     return LayoutBuilder(
       builder: (context, constraints) {
         return GestureDetector(
+          onSecondaryTapUp: _handleSecondaryTapUp,
           onPanStart: (details) => _handlePanStart(details, constraints),
           onPanUpdate: (details) => _handlePanUpdate(details, constraints),
           onPanEnd: _handlePanEnd,

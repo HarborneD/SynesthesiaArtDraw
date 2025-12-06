@@ -1,1 +1,1 @@
-enum DrawingMode { line, gradient }
+enum DrawingMode { line, gradient, erase }

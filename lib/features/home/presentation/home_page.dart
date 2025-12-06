@@ -39,15 +39,15 @@ class _HomePageState extends State<HomePage> {
           onSegmentLengthChanged: (val) => setState(() => _segmentLength = val),
           minPixels: _minPixels,
           onMinPixelsChanged: (val) => setState(() => _minPixels = val),
+          onClearAll: () => setState(() {
+            _lines.clear();
+            _currentLine = null;
+          }),
         );
       case 1:
         return MidiSettingsPane(
           config: _musicConfig,
-          onConfigChanged: (config) {
-            setState(() {
-              _musicConfig = config;
-            });
-          },
+          onConfigChanged: (config) => setState(() => _musicConfig = config),
         );
       case 2:
         return const InstrumentSettingsPane();
@@ -87,11 +87,15 @@ class _HomePageState extends State<HomePage> {
                 minPixels: _minPixels,
                 lines: _lines,
                 currentLine: _currentLine,
+                drawingMode: _currentMode,
                 onCurrentLineUpdated: (line) =>
                     setState(() => _currentLine = line),
                 onLineCompleted: (line) => setState(() {
                   _lines.add(line);
                   _currentLine = null;
+                }),
+                onLineDeleted: (line) => setState(() {
+                  _lines.remove(line);
                 }),
                 onNoteTriggered: (noteIndex) {
                   debugPrint('MIDI TRIGGER: Note Index $noteIndex');

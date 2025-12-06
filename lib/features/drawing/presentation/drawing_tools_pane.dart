@@ -8,6 +8,7 @@ class DrawingToolsPane extends StatefulWidget {
   final ValueChanged<double> onSegmentLengthChanged;
   final double minPixels;
   final ValueChanged<double> onMinPixelsChanged;
+  final VoidCallback onClearAll;
 
   const DrawingToolsPane({
     super.key,
@@ -17,6 +18,7 @@ class DrawingToolsPane extends StatefulWidget {
     required this.onSegmentLengthChanged,
     required this.minPixels,
     required this.onMinPixelsChanged,
+    required this.onClearAll,
   });
 
   @override
@@ -52,12 +54,31 @@ class _DrawingToolsPaneState extends State<DrawingToolsPane> {
       children: [
         const Text('Mode', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 10),
-        Row(
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
           children: [
             _buildModeButton(DrawingMode.line, Icons.edit, 'Line'),
-            const SizedBox(width: 10),
             _buildModeButton(DrawingMode.gradient, Icons.gradient, 'Gradient'),
+            _buildModeButton(
+              DrawingMode.erase,
+              Icons.cleaning_services,
+              'Erase',
+            ),
           ],
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: widget.onClearAll,
+            icon: const Icon(Icons.delete_forever),
+            label: const Text('Clear All'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade100,
+              foregroundColor: Colors.red.shade900,
+            ),
+          ),
         ),
       ],
     );
