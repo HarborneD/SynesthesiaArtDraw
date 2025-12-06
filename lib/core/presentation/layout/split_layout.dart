@@ -16,6 +16,11 @@ class SplitLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (pane != null) {
+      debugPrint("SplitLayout: Rendering pane (Not Null)");
+    } else {
+      debugPrint("SplitLayout: Pane is Null");
+    }
     return Stack(
       children: [
         Positioned.fill(child: content),

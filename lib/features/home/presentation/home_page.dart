@@ -282,9 +282,8 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Widget _getPane(int? index) {
-    // Default to index 0 if null
-    index ??= 0;
+  Widget? _getPane(int? index) {
+    if (index == null) return null;
 
     switch (index) {
       case 0:
@@ -346,7 +345,7 @@ class _HomePageState extends State<HomePage> {
           },
         );
       default:
-        return const SizedBox.shrink();
+        return null;
     }
   }
 
@@ -465,11 +464,7 @@ class _HomePageState extends State<HomePage> {
                       selectedPaneIndex: _selectedPaneIndex,
                       onPaneSelected: (index) {
                         setState(() {
-                          if (_selectedPaneIndex == index) {
-                            _selectedPaneIndex = null;
-                          } else {
-                            _selectedPaneIndex = index;
-                          }
+                          _selectedPaneIndex = index;
                         });
                       },
                     ),
