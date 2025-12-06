@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-class AppSettingsPane extends StatefulWidget {
-  const AppSettingsPane({super.key});
+class AppSettingsPane extends StatelessWidget {
+  final bool showNoteLines;
+  final ValueChanged<bool> onShowNoteLinesChanged;
 
-  @override
-  State<AppSettingsPane> createState() => _AppSettingsPaneState();
-}
-
-class _AppSettingsPaneState extends State<AppSettingsPane> {
-  // Octaves and Scale moved to MidiSettingsPane
+  const AppSettingsPane({
+    super.key,
+    required this.showNoteLines,
+    required this.onShowNoteLinesChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -20,8 +20,12 @@ class _AppSettingsPaneState extends State<AppSettingsPane> {
         children: [
           Text('App Settings', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 20),
-          const Text('Global application settings.'),
-          // Add other global settings here as needed
+          SwitchListTile(
+            title: const Text('Show Note Lines'),
+            subtitle: const Text('Display horizontal lines for notes'),
+            value: showNoteLines,
+            onChanged: onShowNoteLinesChanged,
+          ),
         ],
       ),
     );
