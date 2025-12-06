@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import '../../../core/presentation/layout/split_layout.dart';
+import '../../transport/presentation/transport_bar.dart';
 import '../../canvas/presentation/canvas_widget.dart';
 import '../../drawing/presentation/drawing_tools_pane.dart';
 import '../../midi/presentation/midi_settings_pane.dart';
@@ -31,6 +33,80 @@ class _HomePageState extends State<HomePage> {
   List<DrawnLine> _lines = [];
   DrawnLine? _currentLine;
 
+  // Clock State
+  bool _isPlaying = false;
+  bool _isMetronomeOn = false;
+  int _currentTick = 0; // 0-15
+  Timer? _clockTimer;
+
+  @override
+  void dispose() {
+    _clockTimer?.cancel();
+    super.dispose();
+  }
+
+  void _togglePlay() {
+    setState(() {
+      _isPlaying = !_isPlaying;
+      if (_isPlaying) {
+        _startTimer();
+      } else {
+        _clockTimer?.cancel();
+      }
+    });
+  }
+
+  void _stop() {
+    setState(() {
+      _isPlaying = false;
+      _currentTick = 0;
+      _clockTimer?.cancel();
+    });
+  }
+
+  void _toggleMetronome() {
+    setState(() {
+      _isMetronomeOn = !_isMetronomeOn;
+    });
+  }
+
+  void _startTimer() {
+    _clockTimer?.cancel();
+    if (!_isPlaying) return;
+
+    // Tempo = Beats Per Minute (Quarter notes)
+    // We want 16th notes (4 per beat).
+    // Ticks per minute = Tempo * 4.
+    // Interval (ms) = 60000 / (Tempo * 4)
+    final double msPerTick = 60000 / (_musicConfig.tempo * 4);
+
+    _clockTimer = Timer.periodic(Duration(milliseconds: msPerTick.round()), (
+      timer,
+    ) {
+      setState(() {
+        _currentTick = (_currentTick + 1) % 16;
+
+        // Metronome logic: Tick on downbeats (0, 4, 8, 12)
+        if (_isMetronomeOn && _currentTick % 4 == 0) {
+          // Visual only for now, maybe flash screen or debug print?
+          // debugPrint('Tick');
+          // TODO: Sound
+        }
+      });
+    });
+  }
+
+  // When Tempo changes, we need to restart timer if playing
+  void _updateConfig(MusicConfiguration config) {
+    final bool tempoChanged = config.tempo != _musicConfig.tempo;
+    setState(() {
+      _musicConfig = config;
+    });
+    if (tempoChanged && _isPlaying) {
+      _startTimer();
+    }
+  }
+
   Widget? _getPane(int? index) {
     switch (index) {
       case 0:
@@ -49,7 +125,7 @@ class _HomePageState extends State<HomePage> {
       case 1:
         return MidiSettingsPane(
           config: _musicConfig,
-          onConfigChanged: (config) => setState(() => _musicConfig = config),
+          onConfigChanged: _updateConfig, // Use encapsulated updater
         );
       case 2:
         return const InstrumentSettingsPane();
@@ -77,6 +153,10 @@ class _HomePageState extends State<HomePage> {
         setState(() => _currentMode = DrawingMode.erase);
       } else if (event.logicalKey == LogicalKeyboardKey.keyG) {
         setState(() => _showNoteLines = !_showNoteLines);
+      } else if (event.logicalKey == LogicalKeyboardKey.space) {
+        _togglePlay();
+      } else if (event.logicalKey == LogicalKeyboardKey.keyM) {
+        _toggleMetronome();
       } else if (event.logicalKey == LogicalKeyboardKey.digit1) {
         _toggleScaleDegree(0);
       } else if (event.logicalKey == LogicalKeyboardKey.digit2) {
@@ -137,9 +217,8 @@ class _HomePageState extends State<HomePage> {
 
       newTempo = newTempo.clamp(40.0, 240.0);
 
-      setState(() {
-        _musicConfig = _musicConfig.copyWith(tempo: newTempo);
-      });
+      // Use _updateConfig to handle tempo change and timer restart
+      _updateConfig(_musicConfig.copyWith(tempo: newTempo));
     }
   }
 
@@ -152,42 +231,56 @@ class _HomePageState extends State<HomePage> {
         onKey: _handleKeyEvent,
         child: Listener(
           onPointerSignal: _handleScroll,
-          child: Row(
+          child: Column(
             children: [
-              ToolbarWidget(
-                selectedPaneIndex: _selectedPaneIndex,
-                onPaneSelected: (index) {
-                  setState(() {
-                    _selectedPaneIndex = index;
-                  });
-                },
+              TransportBar(
+                isPlaying: _isPlaying,
+                isMetronomeOn: _isMetronomeOn,
+                currentTick: _currentTick,
+                onPlayPause: _togglePlay,
+                onStop: _stop,
+                onMetronomeToggle: _toggleMetronome,
               ),
               Expanded(
-                child: SplitLayout(
-                  content: CanvasWidget(
-                    musicConfig: _musicConfig,
-                    showNoteLines: _showNoteLines,
-                    segmentLength: _segmentLength,
-                    minPixels: _minPixels,
-                    lines: _lines,
-                    currentLine: _currentLine,
-                    drawingMode: _currentMode,
-                    onCurrentLineUpdated: (line) =>
-                        setState(() => _currentLine = line),
-                    onLineCompleted: (line) => setState(() {
-                      _lines.add(line);
-                      _currentLine = null;
-                    }),
-                    onLineDeleted: (line) => setState(() {
-                      _lines.remove(line);
-                    }),
-                    onNoteTriggered: (noteIndex) {
-                      debugPrint('MIDI TRIGGER: Note Index $noteIndex');
-                      // TODO: Hook up actual MIDI playing here
-                    },
-                  ),
-                  pane: _getPane(_selectedPaneIndex),
-                  paneAtStart: true,
+                child: Row(
+                  children: [
+                    ToolbarWidget(
+                      selectedPaneIndex: _selectedPaneIndex,
+                      onPaneSelected: (index) {
+                        setState(() {
+                          _selectedPaneIndex = index;
+                        });
+                      },
+                    ),
+                    Expanded(
+                      child: SplitLayout(
+                        content: CanvasWidget(
+                          musicConfig: _musicConfig,
+                          showNoteLines: _showNoteLines,
+                          segmentLength: _segmentLength,
+                          minPixels: _minPixels,
+                          lines: _lines,
+                          currentLine: _currentLine,
+                          drawingMode: _currentMode,
+                          onCurrentLineUpdated: (line) =>
+                              setState(() => _currentLine = line),
+                          onLineCompleted: (line) => setState(() {
+                            _lines.add(line);
+                            _currentLine = null;
+                          }),
+                          onLineDeleted: (line) => setState(() {
+                            _lines.remove(line);
+                          }),
+                          onNoteTriggered: (noteIndex) {
+                            debugPrint('MIDI TRIGGER: Note Index $noteIndex');
+                            // TODO: Hook up actual MIDI playing here
+                          },
+                        ),
+                        pane: _getPane(_selectedPaneIndex),
+                        paneAtStart: true,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
