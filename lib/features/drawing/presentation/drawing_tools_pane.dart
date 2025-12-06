@@ -17,6 +17,10 @@ class DrawingToolsPane extends StatefulWidget {
   final Function(int index, GradientStroke newStroke)? onStrokeUpdated;
   final Function(int index)? onStrokeDeleted;
 
+  // Color Props
+  final Color selectedColor;
+  final ValueChanged<Color>? onColorChanged;
+
   const DrawingToolsPane({
     super.key,
     required this.currentMode,
@@ -29,6 +33,8 @@ class DrawingToolsPane extends StatefulWidget {
     this.gradientStrokes = const [],
     this.onStrokeUpdated,
     this.onStrokeDeleted,
+    this.selectedColor = Colors.black,
+    this.onColorChanged,
   });
 
   @override
@@ -53,6 +59,17 @@ class _DrawingToolsPaneState extends State<DrawingToolsPane> {
           _buildToolSection(),
           const Divider(height: 30),
           const Divider(height: 30),
+
+          if (widget.currentMode == DrawingMode.line) ...[
+            const Text(
+              'Line Color',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            _buildColorSelector(),
+            const Divider(height: 30),
+          ],
+
           _buildSettingsSection(),
 
           if (widget.currentMode == DrawingMode.gradient) ...[
@@ -161,6 +178,56 @@ class _DrawingToolsPaneState extends State<DrawingToolsPane> {
         backgroundColor: isSelected ? Theme.of(context).primaryColor : null,
         foregroundColor: isSelected ? Colors.white : null,
       ),
+    );
+  }
+
+  Widget _buildColorSelector() {
+    final colors = [
+      Colors.black,
+      Colors.white,
+      Colors.red,
+      Colors.green,
+      Colors.blue,
+      Colors.yellow,
+      Colors.purple,
+      Colors.orange,
+      Colors.teal,
+      Colors.pink,
+    ];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: colors.map((color) {
+        final isSelected = widget.selectedColor == color;
+        return GestureDetector(
+          onTap: () => widget.onColorChanged?.call(color),
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? Colors.blueAccent : Colors.grey,
+                width: isSelected ? 3.0 : 1.0,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: Colors.blueAccent.withOpacity(0.4),
+                        blurRadius: 4,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: isSelected
+                ? const Icon(Icons.check, size: 16, color: Colors.grey)
+                : null,
+          ),
+        );
+      }).toList(),
     );
   }
 }

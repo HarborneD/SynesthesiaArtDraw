@@ -5,16 +5,17 @@ A Flutter application that combines drawing with generative music.
 
 | Key | Action |
 | --- | --- |
-| **Space** | Play / Stop |
+| **Space** | Play/Pause |
 | **M** | Toggle Metronome |
-| **S** | Toggle Sustain Mode |
-| **Arr Left/Right** | Prev / Next SoundFont |
-| **Arr Up/Down** | Prev / Next Instrument |
+| **S** | Toggle Sustain |
+| **ESC** | Close currently open pane |
+| **Left/Right Arrows** | Cycle SoundFonts |
+| **Up/Down Arrows** | Cycle Instruments (Programs) |
 | **+** / **-** | Prev / Next SoundFont (Alternate) |
 | **L** | Line Mode |
 | **B** | Gradient Mode |
 | **E** | Eraser Mode |
-| **G** | Toggle Note Grid |
+| **G** | Toggle grid lines |
 | **1-7** | Toggle Scale Degrees |
 | **Scroll** | Adjust Tempo |
 

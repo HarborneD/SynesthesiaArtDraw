@@ -16,6 +16,7 @@ class CanvasWidget extends StatefulWidget {
   final List<DrawnLine> lines;
   final DrawnLine? currentLine;
   final DrawingMode drawingMode;
+  final Color selectedColor;
 
   // Gradient Props
   final ui.FragmentShader? backgroundShader;
@@ -37,6 +38,7 @@ class CanvasWidget extends StatefulWidget {
     required this.lines,
     this.currentLine,
     required this.drawingMode,
+    this.selectedColor = Colors.black,
     this.backgroundShader,
     this.gradientStrokes = const [],
     this.onGradientStrokeAdded,
@@ -73,7 +75,11 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     }
 
     final point = DrawingPoint(point: details.localPosition);
-    final newLine = DrawnLine(path: [point], width: 2.0, color: Colors.black);
+    final newLine = DrawnLine(
+      path: [point],
+      width: 2.0,
+      color: widget.selectedColor, // Use selected color
+    );
 
     // Trigger initial note logic ONLY for LINE mode?
     // User spec says: "The user draws multiple 'gradient strokes'... They are visual-only"
