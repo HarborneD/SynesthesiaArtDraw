@@ -83,6 +83,20 @@ class _HomePageState extends State<HomePage> {
               content: CanvasWidget(
                 musicConfig: _musicConfig,
                 showNoteLines: _showNoteLines,
+                segmentLength: _segmentLength,
+                minPixels: _minPixels,
+                lines: _lines,
+                currentLine: _currentLine,
+                onCurrentLineUpdated: (line) =>
+                    setState(() => _currentLine = line),
+                onLineCompleted: (line) => setState(() {
+                  _lines.add(line);
+                  _currentLine = null;
+                }),
+                onNoteTriggered: (noteIndex) {
+                  debugPrint('MIDI TRIGGER: Note Index $noteIndex');
+                  // TODO: Hook up actual MIDI playing here
+                },
               ),
               pane: _getPane(_selectedPaneIndex),
               paneAtStart: true,
