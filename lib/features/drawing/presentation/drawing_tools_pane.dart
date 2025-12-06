@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../domain/drawing_mode.dart';
+import '../domain/gradient_stroke.dart';
+import 'gradient_tools_pane.dart';
 
 class DrawingToolsPane extends StatefulWidget {
   final DrawingMode currentMode;
@@ -10,6 +12,11 @@ class DrawingToolsPane extends StatefulWidget {
   final ValueChanged<double> onMinPixelsChanged;
   final VoidCallback onClearAll;
 
+  // Gradient Props
+  final List<GradientStroke> gradientStrokes;
+  final Function(int index, GradientStroke newStroke)? onStrokeUpdated;
+  final Function(int index)? onStrokeDeleted;
+
   const DrawingToolsPane({
     super.key,
     required this.currentMode,
@@ -19,6 +26,9 @@ class DrawingToolsPane extends StatefulWidget {
     required this.minPixels,
     required this.onMinPixelsChanged,
     required this.onClearAll,
+    this.gradientStrokes = const [],
+    this.onStrokeUpdated,
+    this.onStrokeDeleted,
   });
 
   @override
@@ -42,7 +52,24 @@ class _DrawingToolsPaneState extends State<DrawingToolsPane> {
           const SizedBox(height: 20),
           _buildToolSection(),
           const Divider(height: 30),
+          const Divider(height: 30),
           _buildSettingsSection(),
+
+          if (widget.currentMode == DrawingMode.gradient) ...[
+            const Divider(height: 30),
+            const Text(
+              'Gradient Fields',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: GradientToolsPane(
+                strokes: widget.gradientStrokes,
+                onStrokeUpdated: widget.onStrokeUpdated!,
+                onStrokeDeleted: widget.onStrokeDeleted!,
+              ),
+            ),
+          ],
         ],
       ),
     );

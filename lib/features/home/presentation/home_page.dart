@@ -217,7 +217,13 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  // ...
+  void _clearAll() {
+    setState(() {
+      _lines.clear();
+      _currentLine = null;
+      _gradientStrokes.clear();
+    });
+  }
 
   void _startTimer() {
     _clockTimer?.cancel();
@@ -276,24 +282,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _getPane(int? index) {
     // Default to index 0 if null
-    final opIndex = index ?? 0;
-    // Override: If in Gradient Mode, show Gradient Pane?
-    // Or do we add it as 3rd tab?
-    // Spec says: "That panel can come in from the right when you're in background mode."
-    // Current layout selects pane by index.
-    // Let's FORCE show gradient pane if mode is gradient, OR add it to list.
-
-    if (_currentMode == DrawingMode.gradient) {
-      return GradientToolsPane(
-        strokes: _gradientStrokes,
-        onStrokeUpdated: (idx, newStroke) => setState(() {
-          _gradientStrokes[idx] = newStroke;
-        }),
-        onStrokeDeleted: (idx) => setState(() {
-          _gradientStrokes.removeAt(idx);
-        }),
-      );
-    }
+    index ??= 0;
 
     switch (index) {
       case 0:
@@ -304,10 +293,14 @@ class _HomePageState extends State<HomePage> {
           onSegmentLengthChanged: (val) => setState(() => _segmentLength = val),
           minPixels: _minPixels,
           onMinPixelsChanged: (val) => setState(() => _minPixels = val),
-          onClearAll: () => setState(() {
-            _lines.clear();
-            _currentLine = null;
-            _gradientStrokes.clear();
+          onClearAll: _clearAll,
+
+          gradientStrokes: _gradientStrokes,
+          onStrokeUpdated: (idx, newStroke) => setState(() {
+            _gradientStrokes[idx] = newStroke;
+          }),
+          onStrokeDeleted: (idx) => setState(() {
+            _gradientStrokes.removeAt(idx);
           }),
         );
       case 1:
