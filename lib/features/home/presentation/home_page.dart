@@ -51,6 +51,11 @@ class _HomePageState extends State<HomePage> {
   // Sustain State
   bool _isSustainOn = true;
   int _currentMidiNote = -1;
+  int _currentMidiNoteSfId = -1; // Track which SF triggered the note
+
+  // Optimization: Track last instrument set on Channel 0
+  int? _lastChannel0SfId;
+  int? _lastChannel0Program;
 
   final List<String> _soundFonts = [
     'Dystopian Terra.sf2',
@@ -447,25 +452,33 @@ class _HomePageState extends State<HomePage> {
                             _lines.add(stampedLine);
                             _currentLine = null;
                             if (_isSustainOn && _currentMidiNote != -1) {
-                              // For the active drawing, we use the active settings
+                              // Stop active note
+                              int stopSfId = (_currentMidiNoteSfId != -1)
+                                  ? _currentMidiNoteSfId
+                                  : _sfId;
                               _midi.stopNote(
                                 key: _currentMidiNote,
                                 channel: 0,
-                                sfId: _sfId,
+                                sfId: stopSfId,
                               );
                               _currentMidiNote = -1;
+                              _currentMidiNoteSfId = -1;
                             }
                           }),
                           onLineDeleted: (line) => setState(() {
                             _lines.remove(line);
                             // Stop if it was the triggering note (logic assumption)
                             if (_isSustainOn && _currentMidiNote != -1) {
+                              int stopSfId = (_currentMidiNoteSfId != -1)
+                                  ? _currentMidiNoteSfId
+                                  : _sfId;
                               _midi.stopNote(
                                 key: _currentMidiNote,
                                 channel: 0,
-                                sfId: _sfId,
+                                sfId: stopSfId,
                               );
                               _currentMidiNote = -1;
+                              _currentMidiNoteSfId = -1;
                             }
                           }),
                           onNoteTriggered: (noteIndex, triggeredLine) {
@@ -498,20 +511,30 @@ class _HomePageState extends State<HomePage> {
                                   triggeredLine.program ??
                                   _selectedInstrumentIndex;
 
-                              // Optimistically play
-                              _midi.selectInstrument(
-                                sfId: targetSfId,
-                                program: targetProgram,
-                                channel: 0,
-                              );
+                              // Optimization: Only switch instrument if needed
+                              if (_lastChannel0SfId != targetSfId ||
+                                  _lastChannel0Program != targetProgram) {
+                                _midi.selectInstrument(
+                                  sfId: targetSfId,
+                                  program: targetProgram,
+                                  channel: 0,
+                                );
+                                _lastChannel0SfId = targetSfId;
+                                _lastChannel0Program = targetProgram;
+                                // debugPrint("Switched Channel 0 to SF: $targetSfId, Prog: $targetProgram");
+                              }
 
                               if (_isSustainOn) {
                                 // Stop previous note if held
                                 if (_currentMidiNote != -1) {
+                                  // Use the SFID that started the note, or fallback to current target
+                                  int stopSfId = (_currentMidiNoteSfId != -1)
+                                      ? _currentMidiNoteSfId
+                                      : targetSfId;
                                   _midi.stopNote(
                                     key: _currentMidiNote,
                                     channel: 0,
-                                    sfId: targetSfId,
+                                    sfId: stopSfId,
                                   );
                                 }
                                 // Play new note (indefinite)
@@ -522,6 +545,7 @@ class _HomePageState extends State<HomePage> {
                                   sfId: targetSfId,
                                 );
                                 _currentMidiNote = midiNote;
+                                _currentMidiNoteSfId = targetSfId;
                               } else {
                                 // Use helper for duration to prevent infinite sustain
                                 _playNoteWithDuration(

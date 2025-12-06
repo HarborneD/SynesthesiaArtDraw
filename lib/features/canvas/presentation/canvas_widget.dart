@@ -57,6 +57,7 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     _processTriggerLogic(
       details.localPosition,
       constraints.maxHeight,
+      newLine,
       forceTrigger: true,
     );
 
@@ -84,7 +85,11 @@ class _CanvasWidgetState extends State<CanvasWidget> {
       width: widget.currentLine!.width,
     );
 
-    _processTriggerLogic(details.localPosition, constraints.maxHeight);
+    _processTriggerLogic(
+      details.localPosition,
+      constraints.maxHeight,
+      updatedLine,
+    );
 
     widget.onCurrentLineUpdated(updatedLine);
   }
@@ -144,7 +149,8 @@ class _CanvasWidgetState extends State<CanvasWidget> {
 
   void _processTriggerLogic(
     Offset currentPoint,
-    double height, {
+    double height,
+    DrawnLine activeLine, {
     bool forceTrigger = false,
   }) {
     final activeOctaves = widget.musicConfig.getActiveOctaves();
@@ -190,10 +196,10 @@ class _CanvasWidgetState extends State<CanvasWidget> {
       // For now, stateless trigger is fine. State is managed by HomePage.
 
       // Callback with index AND line source
-      widget.onNoteTriggered(noteIndex, widget.currentLine!);
+      widget.onNoteTriggered(noteIndex, activeLine);
 
       // Debug
-      // debugPrint("Triggered Note Index: $noteIndex from line length ${widget.currentLine!.path.length}");
+      // debugPrint("Triggered Note Index: $noteIndex from line length ${activeLine.path.length}");
       _lastTriggerPoint = currentPoint;
       _lastTriggerNoteIndex = noteIndex;
     }
