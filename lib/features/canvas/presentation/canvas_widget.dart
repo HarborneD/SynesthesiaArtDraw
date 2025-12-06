@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import '../../midi/domain/music_configuration.dart';
 import '../../drawing/domain/drawn_line.dart';
 
@@ -39,8 +40,11 @@ class CanvasWidget extends StatefulWidget {
 class _CanvasWidgetState extends State<CanvasWidget> {
   Offset? _lastTriggerPoint;
   int? _lastTriggerNoteIndex;
+  bool _isRightClick = false;
 
   void _handlePanStart(DragStartDetails details, BoxConstraints constraints) {
+    if (_isRightClick) return;
+
     if (widget.drawingMode == DrawingMode.erase) {
       _handleErase(details.localPosition);
       return;
@@ -60,6 +64,8 @@ class _CanvasWidgetState extends State<CanvasWidget> {
   }
 
   void _handlePanUpdate(DragUpdateDetails details, BoxConstraints constraints) {
+    if (_isRightClick) return;
+
     if (widget.drawingMode == DrawingMode.erase) {
       _handleErase(details.localPosition);
       return;
@@ -84,6 +90,7 @@ class _CanvasWidgetState extends State<CanvasWidget> {
   }
 
   void _handlePanEnd(DragEndDetails details) {
+    if (_isRightClick) return;
     if (widget.drawingMode == DrawingMode.erase) return;
 
     if (widget.currentLine != null) {
@@ -93,22 +100,46 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     }
   }
 
-  void _handleSecondaryTapUp(TapUpDetails details) {
-    // Right click always erases
-    _handleErase(details.localPosition);
-  }
-
   void _handleErase(Offset position) {
     const double eraseThreshold = 20.0;
 
     for (final line in widget.lines) {
-      for (final point in line.path) {
-        if ((point.point - position).distance <= eraseThreshold) {
-          widget.onLineDeleted(line);
-          return; // Delete first match only
+      if (line.path.length < 2) continue;
+
+      bool hit = false;
+      for (int i = 0; i < line.path.length - 1; i++) {
+        final p1 = line.path[i].point;
+        final p2 = line.path[i + 1].point;
+        final dist = _distanceFromPointToLineSegment(position, p1, p2);
+        if (dist <= eraseThreshold) {
+          hit = true;
+          break;
         }
       }
+
+      if (hit) {
+        widget.onLineDeleted(line);
+        return;
+      }
     }
+  }
+
+  double _distanceFromPointToLineSegment(Offset p, Offset v, Offset w) {
+    final double l2 =
+        (w.dx - v.dx) * (w.dx - v.dx) + (w.dy - v.dy) * (w.dy - v.dy);
+    if (l2 == 0) return (p - v).distance;
+
+    final double t =
+        ((p.dx - v.dx) * (w.dx - v.dx) + (p.dy - v.dy) * (w.dy - v.dy)) / l2;
+
+    if (t < 0) return (p - v).distance;
+    if (t > 1) return (p - w).distance;
+
+    final Offset projection = Offset(
+      v.dx + t * (w.dx - v.dx),
+      v.dy + t * (w.dy - v.dy),
+    );
+    return (p - projection).distance;
   }
 
   void _processTriggerLogic(
@@ -166,8 +197,10 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     return LayoutBuilder(
       builder: (context, constraints) {
         return GestureDetector(
-          onSecondaryTapUp: _handleSecondaryTapUp,
-          onPanStart: (details) => _handlePanStart(details, constraints),
+          behavior: HitTestBehavior.opaque,
+          onPanStart: (details) {
+            _handlePanStart(details, constraints);
+          },
           onPanUpdate: (details) => _handlePanUpdate(details, constraints),
           onPanEnd: _handlePanEnd,
           child: Container(
