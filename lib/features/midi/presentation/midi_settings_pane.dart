@@ -5,15 +5,11 @@ import '../domain/music_configuration.dart';
 class MidiSettingsPane extends StatefulWidget {
   final MusicConfiguration config;
   final ValueChanged<MusicConfiguration> onConfigChanged;
-  final bool isSustainOn;
-  final ValueChanged<bool> onSustainChanged;
 
   const MidiSettingsPane({
     super.key,
     required this.config,
     required this.onConfigChanged,
-    required this.isSustainOn,
-    required this.onSustainChanged,
   });
 
   @override
@@ -56,31 +52,7 @@ class _MidiSettingsPaneState extends State<MidiSettingsPane> {
           Text('Midi Settings', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 20),
 
-          SwitchListTile(
-            title: const Text('Sustain Notes'),
-            subtitle: const Text('Hold notes until next trigger or line end'),
-            value: widget.isSustainOn,
-            onChanged: widget.onSustainChanged,
-          ),
-          const Divider(),
-          Text(
-            'Trigger Settings',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Direction Change Threshold: ${widget.config.directionChangeThreshold.toInt()}°',
-          ),
-          Slider(
-            value: widget.config.directionChangeThreshold,
-            min: 10,
-            max: 180,
-            divisions: 170,
-            label: widget.config.directionChangeThreshold.round().toString(),
-            onChanged: (value) => widget.onConfigChanged(
-              widget.config.copyWith(directionChangeThreshold: value),
-            ),
-          ),
+          // Trigger Settings moved to Instrument Pane
           const Divider(),
 
           // --- Music Settings ---

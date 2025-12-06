@@ -12,6 +12,10 @@ import '../../canvas/presentation/background_gradient_painter.dart';
 import '../../drawing/presentation/drawing_tools_pane.dart';
 import '../../drawing/presentation/gradient_tools_pane.dart';
 import '../../midi/presentation/midi_settings_pane.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:synesthesia_art_draw/features/instrument/presentation/preset_library_pane.dart';
+import 'package:synesthesia_art_draw/features/instrument/domain/instrument_preset.dart';
 import '../../instrument/presentation/instrument_settings_pane.dart';
 import '../../settings/presentation/app_settings_pane.dart';
 import '../../toolbar/presentation/toolbar_widget.dart';
@@ -61,12 +65,13 @@ class _HomePageState extends State<HomePage> {
   // MIDI State
   final _midi = MidiPro();
   bool _isMidiInitialized = false;
-  bool _isReverbOn = false;
-  double _reverbDelay = 150.0; // Default 150ms
-  double _reverbDecay = 0.5; // Default 50% decay
+  bool _isReverbOn = true; // Default ON
+  double _reverbDelay = 500.0; // Default 500ms
+  double _reverbDecay = 0.6; // Default 60% decay
   String _selectedSoundFont = 'White Grand Piano II.sf2'; // Default
   int _selectedInstrumentIndex = 0;
   int _sfId = 0;
+  List<InstrumentPreset> _presets = [];
 
   // Sustain State
   bool _isSustainOn = true;
@@ -83,7 +88,6 @@ class _HomePageState extends State<HomePage> {
     'White Grand Piano I.sf2',
     'White Grand Piano II.sf2',
     'White Grand Piano III.sf2',
-    'White Grand Piano IV.sf2',
     'White Grand Piano V.sf2',
     'casio sk-200 gm sf2.sf2',
     'mick_gordon_string_efx.sf2',
@@ -105,6 +109,7 @@ class _HomePageState extends State<HomePage> {
     _initMidi();
     _loadSoundFont(_selectedSoundFont);
     _loadShader();
+    _loadPresets();
   }
 
   Future<void> _loadShader() async {
@@ -378,8 +383,6 @@ class _HomePageState extends State<HomePage> {
         return MidiSettingsPane(
           config: _musicConfig,
           onConfigChanged: _updateConfig,
-          isSustainOn: _isSustainOn,
-          onSustainChanged: (val) => setState(() => _isSustainOn = val),
         );
       case 2:
         return InstrumentSettingsPane(
@@ -390,6 +393,12 @@ class _HomePageState extends State<HomePage> {
           onReverbDelayChanged: (val) => setState(() => _reverbDelay = val),
           reverbDecay: _reverbDecay,
           onReverbDecayChanged: (val) => setState(() => _reverbDecay = val),
+          isSustainOn: _isSustainOn,
+          onSustainChanged: (val) => setState(() => _isSustainOn = val),
+          directionChangeThreshold: _musicConfig.directionChangeThreshold,
+          onDirectionChangeThresholdChanged: (val) => _updateConfig(
+            _musicConfig.copyWith(directionChangeThreshold: val),
+          ),
           selectedSoundFont: _selectedSoundFont,
           onSoundFontChanged: (val) async {
             if (val != _selectedSoundFont) {
@@ -404,6 +413,13 @@ class _HomePageState extends State<HomePage> {
           },
         );
       case 3:
+        return PresetLibraryPane(
+          presets: _presets,
+          onSaveCurrent: _saveCurrentPreset,
+          onLoad: _loadPreset,
+          onDelete: _deletePreset,
+        );
+      case 4:
         return AppSettingsPane(
           showNoteLines: _showNoteLines,
           onShowNoteLinesChanged: (value) {
@@ -506,6 +522,90 @@ class _HomePageState extends State<HomePage> {
       // Use _updateConfig to handle tempo change and timer restart
       _updateConfig(_musicConfig.copyWith(tempo: newTempo));
     }
+  }
+
+  Future<void> _loadPresets() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? presetsJson = prefs.getString('instrument_presets');
+    if (presetsJson != null) {
+      final List<dynamic> decoded = jsonDecode(presetsJson);
+      setState(() {
+        _presets = decoded.map((e) => InstrumentPreset.fromJson(e)).toList();
+      });
+    }
+  }
+
+  Future<void> _savePresets() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String encoded = jsonEncode(_presets.map((e) => e.toJson()).toList());
+    await prefs.setString('instrument_presets', encoded);
+  }
+
+  void _saveCurrentPreset(String name) {
+    final newPreset = InstrumentPreset(
+      name: name,
+      brushSpread: _brushSpread,
+      brushOpacity: _brushOpacity,
+      bristleCount: _bristleCount,
+      useNeonGlow: _useNeonGlow,
+      colorValue: _selectedLineColor.value,
+      triggerOnBoundary: _triggerOnBoundary,
+      minPixelsForTrigger: _minPixels,
+      soundFont: _selectedSoundFont,
+      programIndex: _selectedInstrumentIndex,
+      isReverbOn: _isReverbOn,
+      reverbDelay: _reverbDelay,
+      reverbDecay: _reverbDecay,
+      isSustainOn: _isSustainOn,
+      directionChangeThreshold: _musicConfig.directionChangeThreshold,
+    );
+
+    setState(() {
+      _presets.add(newPreset);
+    });
+    _savePresets();
+  }
+
+  void _loadPreset(InstrumentPreset preset) {
+    setState(() {
+      _brushSpread = preset.brushSpread;
+      _brushOpacity = preset.brushOpacity;
+      _bristleCount = preset.bristleCount;
+      _useNeonGlow = preset.useNeonGlow;
+      _selectedLineColor = Color(preset.colorValue);
+      _triggerOnBoundary = preset.triggerOnBoundary;
+      _minPixels = preset.minPixelsForTrigger;
+
+      // Instrument
+      if (_soundFonts.contains(preset.soundFont)) {
+        // Check if the soundfont is in our available list
+        if (_selectedSoundFont != preset.soundFont) {
+          _selectedSoundFont = preset.soundFont;
+          // Trigger load soundfont if needed, but for now just setting state
+          _loadSoundFont(preset.soundFont);
+        }
+      }
+      _selectedInstrumentIndex = preset.programIndex;
+      _midi.selectInstrument(sfId: _sfId, program: _selectedInstrumentIndex);
+
+      _isReverbOn = preset.isReverbOn;
+      _reverbDelay = preset.reverbDelay;
+      _reverbDecay = preset.reverbDecay;
+      _isSustainOn = preset.isSustainOn;
+
+      _updateConfig(
+        _musicConfig.copyWith(
+          directionChangeThreshold: preset.directionChangeThreshold,
+        ),
+      );
+    });
+  }
+
+  void _deletePreset(InstrumentPreset preset) {
+    setState(() {
+      _presets.remove(preset);
+    });
+    _savePresets();
   }
 
   @override

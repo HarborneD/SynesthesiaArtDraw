@@ -12,6 +12,10 @@ class InstrumentSettingsPane extends StatefulWidget {
   final ValueChanged<double> onReverbDelayChanged;
   final double reverbDecay;
   final ValueChanged<double> onReverbDecayChanged;
+  final bool isSustainOn;
+  final ValueChanged<bool> onSustainChanged;
+  final double directionChangeThreshold;
+  final ValueChanged<double> onDirectionChangeThresholdChanged;
 
   const InstrumentSettingsPane({
     super.key,
@@ -26,6 +30,10 @@ class InstrumentSettingsPane extends StatefulWidget {
     required this.onReverbDelayChanged,
     required this.reverbDecay,
     required this.onReverbDecayChanged,
+    required this.isSustainOn,
+    required this.onSustainChanged,
+    required this.directionChangeThreshold,
+    required this.onDirectionChangeThresholdChanged,
   });
 
   @override
@@ -112,8 +120,8 @@ class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
             Slider(
               value: widget.reverbDelay,
               min: 50,
-              max: 500,
-              divisions: 45,
+              max: 5000,
+              divisions: 100,
               label: '${widget.reverbDelay.toInt()} ms',
               onChanged: widget.onReverbDelayChanged,
             ),
@@ -128,6 +136,26 @@ class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
               onChanged: widget.onReverbDecayChanged,
             ),
           ],
+          const SizedBox(height: 20),
+          const Divider(),
+          SwitchListTile(
+            title: const Text('Sustain Notes'),
+            subtitle: const Text('Hold notes until next trigger or line end'),
+            value: widget.isSustainOn,
+            onChanged: widget.onSustainChanged,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Direction Trigger Threshold: ${widget.directionChangeThreshold.toInt()}°',
+          ),
+          Slider(
+            value: widget.directionChangeThreshold,
+            min: 10,
+            max: 180,
+            divisions: 170,
+            label: widget.directionChangeThreshold.round().toString(),
+            onChanged: widget.onDirectionChangeThresholdChanged,
+          ),
         ],
       ),
     );
