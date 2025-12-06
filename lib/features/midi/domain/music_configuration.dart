@@ -106,4 +106,28 @@ class MusicConfiguration {
     result.sort();
     return result;
   }
+
+  /// Returns a sorted list of MIDI note numbers for the current configuration.
+  List<int> getAllMidiNotes() {
+    final activeOctaves = getActiveOctaves();
+    final Set<int> notes = {};
+
+    for (final octave in activeOctaves) {
+      for (final degree in selectedDegrees) {
+        try {
+          final pitchClass = Pitch.parse(degree).pitchClass.integer;
+          // MIDI Note = (Octave + 1) * 12 + PitchClass
+          final midi = (octave + 1) * 12 + pitchClass;
+          if (midi >= 0 && midi <= 127) {
+            notes.add(midi);
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    final sorted = notes.toList()..sort();
+    return sorted;
+  }
 }

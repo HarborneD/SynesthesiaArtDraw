@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
 
 class InstrumentSettingsPane extends StatefulWidget {
-  const InstrumentSettingsPane({super.key});
+  final String selectedSoundFont;
+  final ValueChanged<String> onSoundFontChanged;
+  final int selectedInstrumentIndex;
+  final ValueChanged<int> onInstrumentChanged;
+
+  const InstrumentSettingsPane({
+    super.key,
+    required this.selectedSoundFont,
+    required this.onSoundFontChanged,
+    required this.selectedInstrumentIndex,
+    required this.onInstrumentChanged,
+  });
 
   @override
   State<InstrumentSettingsPane> createState() => _InstrumentSettingsPaneState();
@@ -9,40 +20,19 @@ class InstrumentSettingsPane extends StatefulWidget {
 
 class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
   bool _useInternalAudio = true;
-  String? _selectedSoundFont;
-  List<String> _availableSoundFonts = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadSoundFonts();
-  }
-
-  Future<void> _loadSoundFonts() async {
-    // In a real app, we would use AssetManifest to list files.
-    // For now, we'll manually list the known files or use a placeholder list
-    // that matches the assets we know exist.
-    // Since we can't easily read the AssetManifest in this environment without
-    // running code, we will implement the logic to read it but default to a list.
-
-    // Simulating checking assets/sounds_fonts/
-    setState(() {
-      _availableSoundFonts = [
-        'Dystopian Terra.sf2',
-        'VocalsPapel.sf2',
-        'White Grand Piano I.sf2',
-        'White Grand Piano II.sf2',
-        'White Grand Piano III.sf2',
-        'White Grand Piano IV.sf2',
-        'White Grand Piano V.sf2',
-        'casio sk-200 gm sf2.sf2',
-        'mick_gordon_string_efx.sf2',
-      ];
-      if (_availableSoundFonts.isNotEmpty) {
-        _selectedSoundFont = _availableSoundFonts.first;
-      }
-    });
-  }
+  // Hardcoded list for now, as we can't easily read assets folder at runtime without manifest
+  final List<String> _availableSoundFonts = [
+    'Dystopian Terra.sf2',
+    'VocalsPapel.sf2',
+    'White Grand Piano I.sf2',
+    'White Grand Piano II.sf2',
+    'White Grand Piano III.sf2',
+    'White Grand Piano IV.sf2',
+    'White Grand Piano V.sf2',
+    'casio sk-200 gm sf2.sf2',
+    'mick_gordon_string_efx.sf2',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -70,21 +60,42 @@ class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
           const SizedBox(height: 20),
           const Text('Sound Font'),
           DropdownButton<String>(
-            value: _selectedSoundFont,
-            hint: const Text('Select Instrument'),
+            value: widget.selectedSoundFont,
+            hint: const Text('Select Sound Font'),
             isExpanded: true,
             onChanged: _useInternalAudio
                 ? (String? newValue) {
-                    setState(() {
-                      _selectedSoundFont = newValue;
-                    });
+                    if (newValue != null) {
+                      widget.onSoundFontChanged(newValue);
+                    }
                   }
-                : null, // Disable if internal audio is off
+                : null,
             items: _availableSoundFonts.map<DropdownMenuItem<String>>((
               String value,
             ) {
               return DropdownMenuItem<String>(value: value, child: Text(value));
             }).toList(),
+          ),
+          const SizedBox(height: 20),
+          const Text('Instrument (Program)'),
+          // Dropdown 0-127
+          DropdownButton<int>(
+            value: widget.selectedInstrumentIndex,
+            hint: const Text('Select Instrument'),
+            isExpanded: true,
+            onChanged: _useInternalAudio
+                ? (int? newValue) {
+                    if (newValue != null) {
+                      widget.onInstrumentChanged(newValue);
+                    }
+                  }
+                : null,
+            items: List.generate(128, (index) {
+              return DropdownMenuItem<int>(
+                value: index,
+                child: Text('Instrument $index'),
+              );
+            }),
           ),
         ],
       ),

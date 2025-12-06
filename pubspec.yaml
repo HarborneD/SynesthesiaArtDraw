@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   tonic: ^0.2.5
   soundpool: ^2.4.1
+  flutter_midi_pro: ^3.1.6
 
 dev_dependencies:
   flutter_test:
@@ -62,6 +63,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/sounds_fonts/
+    - assets/metronome/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

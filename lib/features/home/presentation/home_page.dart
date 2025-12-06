@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
+import 'package:soundpool/soundpool.dart';
 import '../../../core/presentation/layout/split_layout.dart';
+import 'package:flutter_midi_pro/flutter_midi_pro.dart';
 import '../../transport/presentation/transport_bar.dart';
 import '../../canvas/presentation/canvas_widget.dart';
 import '../../drawing/presentation/drawing_tools_pane.dart';
@@ -39,9 +41,67 @@ class _HomePageState extends State<HomePage> {
   int _currentTick = 0; // 0-15
   Timer? _clockTimer;
 
+  // Audio State
+  Soundpool? _pool;
+  int? _soundIdDown;
+  int? _soundIdUp;
+
+  // MIDI State
+  final _midi = MidiPro();
+  bool _isMidiInitialized = false;
+  String _selectedSoundFont = 'Dystopian Terra.sf2'; // Default
+  int _selectedInstrumentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _initAudio();
+    _initMidi();
+  }
+
+  Future<void> _initAudio() async {
+    try {
+      _pool = Soundpool.fromOptions(
+        options: const SoundpoolOptions(streamType: StreamType.music),
+      );
+      _soundIdDown = await rootBundle
+          .load("assets/metronome/Zoom ST Down .wav")
+          .then((ByteData soundData) {
+            return _pool!.load(soundData);
+          });
+      _soundIdUp = await rootBundle
+          .load("assets/metronome/Zoom ST UP.wav")
+          .then((ByteData soundData) {
+            return _pool!.load(soundData);
+          });
+    } catch (e) {
+      debugPrint("Error loading metronome sounds: $e");
+    }
+  }
+
+  Future<void> _initMidi() async {
+    await _loadSoundFont(_selectedSoundFont);
+    setState(() {
+      _isMidiInitialized = true;
+    });
+  }
+
+  int _sfId = 0;
+
+  Future<void> _loadSoundFont(String fileName) async {
+    try {
+      final path = 'assets/sounds_fonts/$fileName';
+      _sfId = await _midi.loadSoundfontAsset(assetPath: path);
+      debugPrint("Loaded SoundFont: $path (ID: $_sfId)");
+    } catch (e) {
+      debugPrint("Error loading SoundFont: $e");
+    }
+  }
+
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _pool?.dispose();
     super.dispose();
   }
 
@@ -75,10 +135,10 @@ class _HomePageState extends State<HomePage> {
     if (!_isPlaying) return;
 
     // Tempo = Beats Per Minute (Quarter notes)
-    // We want 16th notes (4 per beat).
-    // Ticks per minute = Tempo * 4.
-    // Interval (ms) = 60000 / (Tempo * 4)
-    final double msPerTick = 60000 / (_musicConfig.tempo * 4);
+    // We want 1 Dot = 1 Beat (Quarter Note)
+    // Ticks per minute = Tempo.
+    // Interval (ms) = 60000 / Tempo
+    final double msPerTick = 60000 / _musicConfig.tempo;
 
     _clockTimer = Timer.periodic(Duration(milliseconds: msPerTick.round()), (
       timer,
@@ -86,11 +146,13 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _currentTick = (_currentTick + 1) % 16;
 
-        // Metronome logic: Tick on downbeats (0, 4, 8, 12)
-        if (_isMetronomeOn && _currentTick % 4 == 0) {
-          // Visual only for now, maybe flash screen or debug print?
-          // debugPrint('Tick');
-          // TODO: Sound
+        // Metronome logic: Tick every beat (quarter note)
+        if (_isMetronomeOn && _pool != null) {
+          if (_currentTick % 4 == 0) {
+            if (_soundIdDown != null) _pool!.play(_soundIdDown!);
+          } else {
+            if (_soundIdUp != null) _pool!.play(_soundIdUp!);
+          }
         }
       });
     });
@@ -128,7 +190,20 @@ class _HomePageState extends State<HomePage> {
           onConfigChanged: _updateConfig, // Use encapsulated updater
         );
       case 2:
-        return const InstrumentSettingsPane();
+        return InstrumentSettingsPane(
+          selectedSoundFont: _selectedSoundFont,
+          onSoundFontChanged: (val) async {
+            if (val != _selectedSoundFont) {
+              setState(() => _selectedSoundFont = val);
+              await _loadSoundFont(val);
+            }
+          },
+          selectedInstrumentIndex: _selectedInstrumentIndex,
+          onInstrumentChanged: (val) {
+            setState(() => _selectedInstrumentIndex = val);
+            _midi.selectInstrument(sfId: _sfId, program: val);
+          },
+        );
       case 3:
         return AppSettingsPane(
           showNoteLines: _showNoteLines,
@@ -272,8 +347,14 @@ class _HomePageState extends State<HomePage> {
                             _lines.remove(line);
                           }),
                           onNoteTriggered: (noteIndex) {
-                            debugPrint('MIDI TRIGGER: Note Index $noteIndex');
-                            // TODO: Hook up actual MIDI playing here
+                            if (!_isMidiInitialized) return;
+
+                            final notes = _musicConfig.getAllMidiNotes();
+                            if (noteIndex >= 0 && noteIndex < notes.length) {
+                              final midiNote = notes[noteIndex];
+                              // Trying named arguments based on others being named
+                              _midi.playNote(note: midiNote, velocity: 127, channel: 0);
+                            }
                           },
                         ),
                         pane: _getPane(_selectedPaneIndex),
@@ -289,4 +370,3 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-}
