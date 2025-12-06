@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
-import 'package:soundpool/soundpool.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../../../core/presentation/layout/split_layout.dart';
 import 'package:flutter_midi_pro/flutter_midi_pro.dart';
 import '../../transport/presentation/transport_bar.dart';
@@ -41,16 +41,18 @@ class _HomePageState extends State<HomePage> {
   int _currentTick = 0; // 0-15
   Timer? _clockTimer;
 
-  // Audio State
-  Soundpool? _pool;
-  int? _soundIdDown;
-  int? _soundIdUp;
-
   // MIDI State
   final _midi = MidiPro();
   bool _isMidiInitialized = false;
   String _selectedSoundFont = 'Dystopian Terra.sf2'; // Default
   int _selectedInstrumentIndex = 0;
+  int _sfId = 0;
+
+  // Audio State
+  final AudioPlayer _playerDown = AudioPlayer();
+  final AudioPlayer _playerUp = AudioPlayer();
+
+  // ...
 
   @override
   void initState() {
@@ -60,22 +62,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _initAudio() async {
+    // Preload sounds for lower latency
     try {
-      _pool = Soundpool.fromOptions(
-        options: const SoundpoolOptions(streamType: StreamType.music),
-      );
-      _soundIdDown = await rootBundle
-          .load("assets/metronome/Zoom ST Down .wav")
-          .then((ByteData soundData) {
-            return _pool!.load(soundData);
-          });
-      _soundIdUp = await rootBundle
-          .load("assets/metronome/Zoom ST UP.wav")
-          .then((ByteData soundData) {
-            return _pool!.load(soundData);
-          });
+      await _playerDown.setSource(AssetSource('metronome/Zoom ST Down .wav'));
+      await _playerDown.setPlayerMode(PlayerMode.lowLatency);
+
+      await _playerUp.setSource(AssetSource('metronome/Zoom ST UP.wav'));
+      await _playerUp.setPlayerMode(PlayerMode.lowLatency);
     } catch (e) {
-      debugPrint("Error loading metronome sounds: $e");
+      debugPrint("Error loading audio: $e");
     }
   }
 
@@ -86,8 +81,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  int _sfId = 0;
-
   Future<void> _loadSoundFont(String fileName) async {
     try {
       final path = 'assets/sounds_fonts/$fileName';
@@ -96,13 +89,6 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       debugPrint("Error loading SoundFont: $e");
     }
-  }
-
-  @override
-  void dispose() {
-    _clockTimer?.cancel();
-    _pool?.dispose();
-    super.dispose();
   }
 
   void _togglePlay() {
@@ -130,14 +116,20 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  @override
+  void dispose() {
+    _clockTimer?.cancel();
+    _playerDown.dispose();
+    _playerUp.dispose();
+    super.dispose();
+  }
+
+  // ...
+
   void _startTimer() {
     _clockTimer?.cancel();
     if (!_isPlaying) return;
 
-    // Tempo = Beats Per Minute (Quarter notes)
-    // We want 1 Dot = 1 Beat (Quarter Note)
-    // Ticks per minute = Tempo.
-    // Interval (ms) = 60000 / Tempo
     final double msPerTick = 60000 / _musicConfig.tempo;
 
     _clockTimer = Timer.periodic(Duration(milliseconds: msPerTick.round()), (
@@ -146,12 +138,13 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _currentTick = (_currentTick + 1) % 16;
 
-        // Metronome logic: Tick every beat (quarter note)
-        if (_isMetronomeOn && _pool != null) {
+        if (_isMetronomeOn) {
           if (_currentTick % 4 == 0) {
-            if (_soundIdDown != null) _pool!.play(_soundIdDown!);
+            _playerDown.stop(); // Stop previous if overlap
+            _playerDown.resume();
           } else {
-            if (_soundIdUp != null) _pool!.play(_soundIdUp!);
+            _playerUp.stop();
+            _playerUp.resume();
           }
         }
       });
