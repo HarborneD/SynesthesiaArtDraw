@@ -60,6 +60,10 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  shaders:
+    - shaders/gradient_field.frag
+
+
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/sounds_fonts/

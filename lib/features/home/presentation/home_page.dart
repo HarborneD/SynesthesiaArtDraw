@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui' as ui; // For FragmentProgram
 import 'package:flutter/gestures.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../core/presentation/layout/split_layout.dart';
 import 'package:flutter_midi_pro/flutter_midi_pro.dart';
 import '../../transport/presentation/transport_bar.dart';
 import '../../canvas/presentation/canvas_widget.dart';
+import '../../canvas/presentation/background_gradient_painter.dart';
 import '../../drawing/presentation/drawing_tools_pane.dart';
 import '../../midi/presentation/midi_settings_pane.dart';
 import '../../instrument/presentation/instrument_settings_pane.dart';
@@ -14,6 +16,7 @@ import '../../settings/presentation/app_settings_pane.dart';
 import '../../toolbar/presentation/toolbar_widget.dart';
 import '../../drawing/domain/drawing_mode.dart';
 import '../../drawing/domain/drawn_line.dart';
+import '../../drawing/domain/gradient_stroke.dart';
 import '../../midi/domain/music_configuration.dart';
 
 class HomePage extends StatefulWidget {
@@ -25,7 +28,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int? _selectedPaneIndex;
-  DrawingMode _currentMode = DrawingMode.line;
   MusicConfiguration _musicConfig = MusicConfiguration();
   bool _showNoteLines = true;
 
@@ -34,6 +36,12 @@ class _HomePageState extends State<HomePage> {
   double _minPixels = 1.0;
   List<DrawnLine> _lines = [];
   DrawnLine? _currentLine;
+
+  // Gradient State
+  List<GradientStroke> _gradientStrokes = [];
+  ui.FragmentShader? _backgroundShader;
+
+  DrawingMode _currentMode = DrawingMode.line;
 
   // Clock State
   bool _isPlaying = false;
@@ -82,11 +90,25 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _initAudio();
     _initMidi();
+    _loadSoundFont(_selectedSoundFont);
+    _loadShader();
   }
 
-  Future<void> _initAudio() async {
+  Future<void> _loadShader() async {
+    try {
+      ui.FragmentProgram program = await ui.FragmentProgram.fromAsset(
+        'shaders/gradient_field.frag',
+      );
+      setState(() {
+        _backgroundShader = program.fragmentShader();
+      });
+    } catch (e) {
+      debugPrint("Failed to load shader: $e");
+    }
+  }
+
+  Future<void> _initMidi() async {
     // Preload sounds for lower latency
     try {
       await _playerDown.setSource(AssetSource('metronome/Zoom ST Down .wav'));
@@ -97,9 +119,7 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       debugPrint("Error loading audio: $e");
     }
-  }
 
-  Future<void> _initMidi() async {
     await _loadSoundFont(_selectedSoundFont);
     setState(() {
       _isMidiInitialized = true;
@@ -266,6 +286,7 @@ class _HomePageState extends State<HomePage> {
           onClearAll: () => setState(() {
             _lines.clear();
             _currentLine = null;
+            _gradientStrokes.clear();
           }),
         );
       case 1:
@@ -434,6 +455,19 @@ class _HomePageState extends State<HomePage> {
                           lines: _lines,
                           currentLine: _currentLine,
                           drawingMode: _currentMode,
+
+                          // Gradient Props
+                          backgroundShader: _backgroundShader,
+                          gradientStrokes: _gradientStrokes,
+                          onGradientStrokeAdded: (stroke) => setState(() {
+                            _gradientStrokes.add(stroke);
+                            // Keep max 16
+                            if (_gradientStrokes.length >
+                                BackgroundGradientPainter.MAX_STROKES) {
+                              _gradientStrokes.removeAt(0);
+                            }
+                          }),
+
                           onCurrentLineUpdated: (line) =>
                               setState(() => _currentLine = line),
                           onLineCompleted: (line) => setState(() {

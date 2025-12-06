@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'dart:ui' as ui;
 import '../../midi/domain/music_configuration.dart';
 import '../../drawing/domain/drawn_line.dart';
+import '../../drawing/domain/gradient_stroke.dart';
+import '../../canvas/presentation/background_gradient_painter.dart';
 
 import '../../drawing/domain/drawing_mode.dart';
 
@@ -13,6 +16,12 @@ class CanvasWidget extends StatefulWidget {
   final List<DrawnLine> lines;
   final DrawnLine? currentLine;
   final DrawingMode drawingMode;
+
+  // Gradient Props
+  final ui.FragmentShader? backgroundShader;
+  final List<GradientStroke> gradientStrokes;
+  final ValueChanged<GradientStroke>? onGradientStrokeAdded;
+
   final ValueChanged<DrawnLine> onCurrentLineUpdated;
   final ValueChanged<DrawnLine> onLineCompleted;
   final ValueChanged<DrawnLine> onLineDeleted;
@@ -27,6 +36,9 @@ class CanvasWidget extends StatefulWidget {
     required this.lines,
     this.currentLine,
     required this.drawingMode,
+    this.backgroundShader,
+    this.gradientStrokes = const [],
+    this.onGradientStrokeAdded,
     required this.onCurrentLineUpdated,
     required this.onLineCompleted,
     required this.onLineDeleted,
@@ -50,16 +62,31 @@ class _CanvasWidgetState extends State<CanvasWidget> {
       return;
     }
 
+    if (widget.drawingMode == DrawingMode.gradient) {
+      // Start a gradient stroke logic?
+      // Actually gradient stroke is defined by P0 -> P1.
+      // On PanStart we set P0. On PanEnd we set P1 and finalize.
+      // OR we visualize the line being drawn.
+      // For simplicity, let's treat it like DrawingMode.line but finalizer creates GradientStroke.
+    }
+
     final point = DrawingPoint(point: details.localPosition);
     final newLine = DrawnLine(path: [point], width: 2.0, color: Colors.black);
 
-    // Trigger initial note
-    _processTriggerLogic(
-      details.localPosition,
-      constraints.maxHeight,
-      newLine,
-      forceTrigger: true,
-    );
+    // Trigger initial note logic ONLY for LINE mode?
+    // User spec says: "The user draws multiple 'gradient strokes'... They are visual-only"
+    if (widget.drawingMode == DrawingMode.line) {
+      // Trigger initial note
+      _processTriggerLogic(
+        details.localPosition,
+        constraints.maxHeight,
+        newLine,
+        forceTrigger: true,
+      );
+    }
+
+    // For now, we use standard line drawing visuals for Feedback,
+    // then convert to GradientStroke on End if mode is gradient.
 
     widget.onCurrentLineUpdated(newLine);
   }
@@ -99,7 +126,27 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     if (widget.drawingMode == DrawingMode.erase) return;
 
     if (widget.currentLine != null) {
-      widget.onLineCompleted(widget.currentLine!);
+      if (widget.drawingMode == DrawingMode.gradient) {
+        // Convert DrawnLine to GradientStroke
+        final path = widget.currentLine!.path;
+        if (path.length >= 2) {
+          final p0 = path.first.point;
+          final p1 = path.last.point;
+
+          // Define default gradient for now (e.g. 3 colors)
+          // We could randomize or cycle these.
+          final stroke = GradientStroke(
+            p0: p0,
+            p1: p1,
+            colors: [Colors.purple, Colors.blue, Colors.cyan],
+            stops: [0.0, 0.5, 1.0],
+            intensity: 100.0, // Fixed radius for now
+          );
+          widget.onGradientStrokeAdded?.call(stroke);
+        }
+      } else {
+        widget.onLineCompleted(widget.currentLine!);
+      }
       _lastTriggerPoint = null;
       _lastTriggerNoteIndex = null;
     }
@@ -153,6 +200,9 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     DrawnLine activeLine, {
     bool forceTrigger = false,
   }) {
+    if (widget.drawingMode != DrawingMode.line)
+      return; // Only process notes for Line mode
+
     final activeOctaves = widget.musicConfig.getActiveOctaves();
     if (activeOctaves.isEmpty) return;
 
@@ -221,13 +271,19 @@ class _CanvasWidgetState extends State<CanvasWidget> {
             width: double.infinity,
             height: double.infinity,
             child: CustomPaint(
+              painter: BackgroundGradientPainter(
+                shader: widget.backgroundShader,
+                strokes: widget.gradientStrokes,
+              ),
               foregroundPainter: _GridPainter(
                 musicConfig: widget.musicConfig,
                 showNoteLines: widget.showNoteLines,
               ),
-              painter: _LinesPainter(
-                lines: widget.lines,
-                currentLine: widget.currentLine,
+              child: CustomPaint(
+                painter: _LinesPainter(
+                  lines: widget.lines,
+                  currentLine: widget.currentLine,
+                ),
               ),
             ),
           ),
