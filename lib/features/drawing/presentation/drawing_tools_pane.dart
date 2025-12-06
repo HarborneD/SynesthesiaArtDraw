@@ -257,13 +257,16 @@ class _DrawingToolsPaneState extends State<DrawingToolsPane> {
 
   Widget _buildModeButton(DrawingMode mode, IconData icon, String label) {
     final isSelected = widget.currentMode == mode;
-    return ElevatedButton.icon(
-      onPressed: () => widget.onModeChanged(mode),
-      icon: Icon(icon),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? Theme.of(context).primaryColor : null,
-        foregroundColor: isSelected ? Colors.white : null,
+    return Tooltip(
+      message: label,
+      child: ElevatedButton(
+        onPressed: () => widget.onModeChanged(mode),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isSelected ? Theme.of(context).primaryColor : null,
+          foregroundColor: isSelected ? Colors.white : null,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+        child: Icon(icon),
       ),
     );
   }
