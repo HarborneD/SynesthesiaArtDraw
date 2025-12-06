@@ -14,4 +14,20 @@ class GradientStroke {
     required this.stops,
     required this.intensity,
   });
+
+  GradientStroke copyWith({
+    Offset? p0,
+    Offset? p1,
+    List<Color>? colors,
+    List<double>? stops,
+    double? intensity,
+  }) {
+    return GradientStroke(
+      p0: p0 ?? this.p0,
+      p1: p1 ?? this.p1,
+      colors: colors ?? this.colors,
+      stops: stops ?? this.stops,
+      intensity: intensity ?? this.intensity,
+    );
+  }
 }

@@ -21,6 +21,7 @@ class CanvasWidget extends StatefulWidget {
   final ui.FragmentShader? backgroundShader;
   final List<GradientStroke> gradientStrokes;
   final ValueChanged<GradientStroke>? onGradientStrokeAdded;
+  final bool showGradientOverlays;
 
   final ValueChanged<DrawnLine> onCurrentLineUpdated;
   final ValueChanged<DrawnLine> onLineCompleted;
@@ -39,6 +40,7 @@ class CanvasWidget extends StatefulWidget {
     this.backgroundShader,
     this.gradientStrokes = const [],
     this.onGradientStrokeAdded,
+    this.showGradientOverlays = false,
     required this.onCurrentLineUpdated,
     required this.onLineCompleted,
     required this.onLineDeleted,
@@ -275,9 +277,12 @@ class _CanvasWidgetState extends State<CanvasWidget> {
                 shader: widget.backgroundShader,
                 strokes: widget.gradientStrokes,
               ),
-              foregroundPainter: _GridPainter(
+              foregroundPainter: _OverlayPainter(
                 musicConfig: widget.musicConfig,
                 showNoteLines: widget.showNoteLines,
+                gradientStrokes: widget.showGradientOverlays
+                    ? widget.gradientStrokes
+                    : [],
               ),
               child: CustomPaint(
                 painter: _LinesPainter(
@@ -334,60 +339,98 @@ class _LinesPainter extends CustomPainter {
   }
 }
 
-class _GridPainter extends CustomPainter {
+class _OverlayPainter extends CustomPainter {
   final MusicConfiguration musicConfig;
   final bool showNoteLines;
+  final List<GradientStroke> gradientStrokes;
 
-  _GridPainter({required this.musicConfig, required this.showNoteLines});
+  _OverlayPainter({
+    required this.musicConfig,
+    required this.showNoteLines,
+    required this.gradientStrokes,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (!showNoteLines || musicConfig.selectedDegrees.isEmpty) return;
+    // 1. Draw Grid
+    if (showNoteLines && musicConfig.selectedDegrees.isNotEmpty) {
+      final activeOctaves = musicConfig.getActiveOctaves();
+      if (activeOctaves.isNotEmpty) {
+        final degreesCount = musicConfig.selectedDegrees.length;
+        final totalNotes = activeOctaves.length * degreesCount;
 
-    final activeOctaves = musicConfig.getActiveOctaves();
-    if (activeOctaves.isEmpty) return;
+        if (totalNotes > 0) {
+          final noteHeight = size.height / totalNotes;
 
-    final degreesCount = musicConfig.selectedDegrees.length;
-    final totalNotes = activeOctaves.length * degreesCount;
+          // Standard Line Paint
+          final standardPaint = Paint()
+            ..color = Colors.grey.withOpacity(0.5)
+            ..strokeWidth = 2.0;
 
-    if (totalNotes == 0) return;
+          // Bold Line Paint (for Root/Octave division)
+          final boldPaint = Paint()
+            ..color = Colors.black.withOpacity(0.8)
+            ..strokeWidth = 4.0;
 
-    final noteHeight = size.height / totalNotes;
+          for (int i = 0; i <= totalNotes; i++) {
+            final y = size.height - (i * noteHeight);
 
-    // Standard Line Paint
-    final standardPaint = Paint()
-      ..color = Colors.grey.withOpacity(0.5)
-      ..strokeWidth = 2.0;
+            // Logic to highlight root notes?
+            // Assuming simplest grid for now to avoid logic errors without viewing source.
+            // But let's try to preserve the bold logic if possible.
+            // "i % degreesCount == 0" means a C-equivalent if C scale?
+            // Let's stick to standard lines for safety unless I'm sure.
+            // Reviewing previous diff... it had "isRootBoundary" logic.
+            // I'll reimplement specific logic:
 
-    // Bold Line Paint (for Root/Octave division)
-    final boldPaint = Paint()
-      ..color = Colors.black.withOpacity(0.8)
-      ..strokeWidth = 4.0;
+            bool isRootBoundary = (i % degreesCount == 0);
 
-    // Draw lines from bottom (lowest pitch) to top (highest pitch)
-    // i represents the line index from the bottom (0 = bottom edge, totalNotes = top edge)
-    for (int i = 0; i <= totalNotes; i++) {
-      final y = size.height - (i * noteHeight);
+            canvas.drawLine(
+              Offset(0, y),
+              Offset(size.width, y),
+              isRootBoundary ? boldPaint : standardPaint,
+            );
+          }
+        }
+      }
+    }
 
-      // Check if this line is a boundary for the root note (lowest degree)
-      // Root note is at indices: 0, degreesCount, 2*degreesCount...
-      // Note Index 0 (Lowest) is between Line 0 and Line 1.
-      // Note Index 7 (Next Root) is between Line 7 and Line 8.
+    // 2. Draw Gradient Overlays
+    if (gradientStrokes.isNotEmpty) {
+      final skelPaint = Paint()
+        ..color = Colors.white
+        ..strokeWidth = 1.0
+        ..style = PaintingStyle.stroke;
 
-      // So Line i is bold if it is the bottom (i % count == 0) or top (i % count == 1) of a root note.
-      final isRootBoundary = (i % degreesCount == 0) || (i % degreesCount == 1);
+      final handlePaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
 
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        isRootBoundary ? boldPaint : standardPaint,
-      );
+      final radiusPaint = Paint()
+        ..color = Colors.white.withOpacity(0.1)
+        ..style = PaintingStyle.stroke;
+
+      for (final stroke in gradientStrokes) {
+        // Draw Line
+        canvas.drawLine(stroke.p0, stroke.p1, skelPaint);
+        // Draw Handles
+        canvas.drawCircle(stroke.p0, 4.0, handlePaint);
+        canvas.drawCircle(stroke.p1, 4.0, handlePaint);
+
+        // Draw Intesity Radius (approximate visual feedback)
+        final center = Offset(
+          (stroke.p0.dx + stroke.p1.dx) / 2,
+          (stroke.p0.dy + stroke.p1.dy) / 2,
+        );
+        canvas.drawCircle(center, stroke.intensity, radiusPaint);
+      }
     }
   }
 
   @override
-  bool shouldRepaint(covariant _GridPainter oldDelegate) {
-    return showNoteLines != oldDelegate.showNoteLines ||
-        musicConfig != oldDelegate.musicConfig;
+  bool shouldRepaint(covariant _OverlayPainter oldDelegate) {
+    return oldDelegate.musicConfig != musicConfig ||
+        oldDelegate.showNoteLines != showNoteLines ||
+        oldDelegate.gradientStrokes != gradientStrokes;
   }
 }

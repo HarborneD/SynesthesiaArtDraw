@@ -10,6 +10,7 @@ import '../../transport/presentation/transport_bar.dart';
 import '../../canvas/presentation/canvas_widget.dart';
 import '../../canvas/presentation/background_gradient_painter.dart';
 import '../../drawing/presentation/drawing_tools_pane.dart';
+import '../../drawing/presentation/gradient_tools_pane.dart';
 import '../../midi/presentation/midi_settings_pane.dart';
 import '../../instrument/presentation/instrument_settings_pane.dart';
 import '../../settings/presentation/app_settings_pane.dart';
@@ -273,7 +274,27 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Widget? _getPane(int? index) {
+  Widget _getPane(int? index) {
+    // Default to index 0 if null
+    final opIndex = index ?? 0;
+    // Override: If in Gradient Mode, show Gradient Pane?
+    // Or do we add it as 3rd tab?
+    // Spec says: "That panel can come in from the right when you're in background mode."
+    // Current layout selects pane by index.
+    // Let's FORCE show gradient pane if mode is gradient, OR add it to list.
+
+    if (_currentMode == DrawingMode.gradient) {
+      return GradientToolsPane(
+        strokes: _gradientStrokes,
+        onStrokeUpdated: (idx, newStroke) => setState(() {
+          _gradientStrokes[idx] = newStroke;
+        }),
+        onStrokeDeleted: (idx) => setState(() {
+          _gradientStrokes.removeAt(idx);
+        }),
+      );
+    }
+
     switch (index) {
       case 0:
         return DrawingToolsPane(
@@ -322,7 +343,7 @@ class _HomePageState extends State<HomePage> {
           },
         );
       default:
-        return null;
+        return const SizedBox.shrink();
     }
   }
 
@@ -459,9 +480,12 @@ class _HomePageState extends State<HomePage> {
                           // Gradient Props
                           backgroundShader: _backgroundShader,
                           gradientStrokes: _gradientStrokes,
+                          showGradientOverlays:
+                              _currentMode ==
+                              DrawingMode.gradient, // Visibility Logic
                           onGradientStrokeAdded: (stroke) => setState(() {
                             _gradientStrokes.add(stroke);
-                            // Keep max 16
+                            // Keep max 8
                             if (_gradientStrokes.length >
                                 BackgroundGradientPainter.MAX_STROKES) {
                               _gradientStrokes.removeAt(0);
