@@ -68,6 +68,10 @@ class _HomePageState extends State<HomePage> {
   final AudioPlayer _playerDown = AudioPlayer();
   final AudioPlayer _playerUp = AudioPlayer();
 
+  // Track loaded SoundFonts to get their IDs
+  // Filename -> ID
+  final Map<String, int> _loadedSoundFonts = {};
+
   // ...
 
   @override
@@ -99,12 +103,18 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadSoundFont(String fileName) async {
     try {
-      final path = 'assets/sounds_fonts/$fileName';
-      _sfId = await _midi.loadSoundfontAsset(assetPath: path);
-      debugPrint("Loaded SoundFont: $path (ID: $_sfId)");
+      if (_loadedSoundFonts.containsKey(fileName)) {
+        _sfId = _loadedSoundFonts[fileName]!;
+      } else {
+        final path = 'assets/sounds_fonts/$fileName';
+        _sfId = await _midi.loadSoundfontAsset(assetPath: path);
+        _loadedSoundFonts[fileName] = _sfId;
+        debugPrint("Loaded SoundFont: $path (ID: $_sfId)");
+      }
 
       // Fix: Ensure we select the instrument on the new SoundFont for Channel 0
       // This helps prevent "layering" or stuck instruments from previous SFs
+      // NOTE: This now only affects the 'active' drawing instrument
       _midi.selectInstrument(
         sfId: _sfId,
         program: _selectedInstrumentIndex,
@@ -125,6 +135,19 @@ class _HomePageState extends State<HomePage> {
     final newFont = _soundFonts[newIndex];
     setState(() => _selectedSoundFont = newFont);
     _loadSoundFont(newFont);
+  }
+
+  void _cycleInstrument(int direction) {
+    setState(() {
+      int newProgram = (_selectedInstrumentIndex + direction) % 128;
+      if (newProgram < 0) newProgram = 127;
+      _selectedInstrumentIndex = newProgram;
+      _midi.selectInstrument(
+        sfId: _sfId,
+        program: _selectedInstrumentIndex,
+        channel: 0,
+      );
+    });
   }
 
   void _togglePlay() {
@@ -199,13 +222,18 @@ class _HomePageState extends State<HomePage> {
   }
 
   // Helper to play note with duration (prevents infinite sustain)
-  void _playNoteWithDuration(int note, int velocity, int durationMs) {
+  void _playNoteWithDuration(
+    int note,
+    int velocity,
+    int durationMs, {
+    required int sfId,
+  }) {
     if (!_isMidiInitialized) return;
 
-    _midi.playNote(key: note, velocity: velocity, channel: 0, sfId: _sfId);
+    _midi.playNote(key: note, velocity: velocity, channel: 0, sfId: sfId);
 
     Future.delayed(Duration(milliseconds: durationMs), () {
-      _midi.stopNote(key: note, channel: 0, sfId: _sfId);
+      _midi.stopNote(key: note, channel: 0, sfId: sfId);
     });
   }
 
@@ -288,10 +316,14 @@ class _HomePageState extends State<HomePage> {
         _toggleMetronome();
       } else if (event.logicalKey == LogicalKeyboardKey.keyS) {
         setState(() => _isSustainOn = !_isSustainOn);
-      } else if (event.logicalKey == LogicalKeyboardKey.equal) {
-        _cycleSoundFont(1);
-      } else if (event.logicalKey == LogicalKeyboardKey.minus) {
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
         _cycleSoundFont(-1);
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        _cycleSoundFont(1);
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        _cycleInstrument(-1);
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        _cycleInstrument(1);
       } else if (event.logicalKey == LogicalKeyboardKey.digit1) {
         _toggleScaleDegree(0);
       } else if (event.logicalKey == LogicalKeyboardKey.digit2) {
@@ -400,9 +432,22 @@ class _HomePageState extends State<HomePage> {
                           onCurrentLineUpdated: (line) =>
                               setState(() => _currentLine = line),
                           onLineCompleted: (line) => setState(() {
-                            _lines.add(line);
+                            // Update the completed line with CURRENT instrument settings
+                            // This effectively "stamps" the line with the sound it was drawn with
+
+                            final stampedLine = DrawnLine(
+                              path: line.path,
+                              color: line.color,
+                              width: line.width,
+                              soundFont: _selectedSoundFont,
+                              program: _selectedInstrumentIndex,
+                              sfId: _sfId,
+                            );
+
+                            _lines.add(stampedLine);
                             _currentLine = null;
                             if (_isSustainOn && _currentMidiNote != -1) {
+                              // For the active drawing, we use the active settings
                               _midi.stopNote(
                                 key: _currentMidiNote,
                                 channel: 0,
@@ -413,7 +458,7 @@ class _HomePageState extends State<HomePage> {
                           }),
                           onLineDeleted: (line) => setState(() {
                             _lines.remove(line);
-                            // If deleting active line (unlikely here but safe), stop note
+                            // Stop if it was the triggering note (logic assumption)
                             if (_isSustainOn && _currentMidiNote != -1) {
                               _midi.stopNote(
                                 key: _currentMidiNote,
@@ -423,12 +468,42 @@ class _HomePageState extends State<HomePage> {
                               _currentMidiNote = -1;
                             }
                           }),
-                          onNoteTriggered: (noteIndex) {
+                          onNoteTriggered: (noteIndex, triggeredLine) {
                             if (!_isMidiInitialized) return;
 
                             final notes = _musicConfig.getAllMidiNotes();
                             if (noteIndex >= 0 && noteIndex < notes.length) {
                               final midiNote = notes[noteIndex];
+
+                              // DETERMINE SOUND FOR THIS TRIGGER
+                              // If triggeredLine has stored sound data, use it.
+                              // If it's the 'currentLine' (being drawn), it might be null if not yet stamped.
+                              // If null, use global state.
+
+                              int targetSfId = triggeredLine.sfId ?? _sfId;
+                              // If stored sfId is not valid/loaded (e.g. restart), fallback to lookup
+                              if (triggeredLine.soundFont != null &&
+                                  _loadedSoundFonts.containsKey(
+                                    triggeredLine.soundFont,
+                                  )) {
+                                targetSfId =
+                                    _loadedSoundFonts[triggeredLine.soundFont]!;
+                              }
+
+                              // We might need to ensure the program is set for this playback event.
+                              // Since we might be sharing Channel 0, this is tricky.
+                              // WE WILL SET IT JUST IN CASE.
+                              // NOTE: This might glitch current playback if polyphony is high.
+                              int targetProgram =
+                                  triggeredLine.program ??
+                                  _selectedInstrumentIndex;
+
+                              // Optimistically play
+                              _midi.selectInstrument(
+                                sfId: targetSfId,
+                                program: targetProgram,
+                                channel: 0,
+                              );
 
                               if (_isSustainOn) {
                                 // Stop previous note if held
@@ -436,7 +511,7 @@ class _HomePageState extends State<HomePage> {
                                   _midi.stopNote(
                                     key: _currentMidiNote,
                                     channel: 0,
-                                    sfId: _sfId,
+                                    sfId: targetSfId,
                                   );
                                 }
                                 // Play new note (indefinite)
@@ -444,12 +519,17 @@ class _HomePageState extends State<HomePage> {
                                   key: midiNote,
                                   velocity: 127,
                                   channel: 0,
-                                  sfId: _sfId,
+                                  sfId: targetSfId,
                                 );
                                 _currentMidiNote = midiNote;
                               } else {
                                 // Use helper for duration to prevent infinite sustain
-                                _playNoteWithDuration(midiNote, 127, 300);
+                                _playNoteWithDuration(
+                                  midiNote,
+                                  127,
+                                  300,
+                                  sfId: targetSfId,
+                                );
                               }
                             }
                           },

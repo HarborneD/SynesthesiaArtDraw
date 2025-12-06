@@ -8,7 +8,9 @@ A Flutter application that combines drawing with generative music.
 | **Space** | Play / Stop |
 | **M** | Toggle Metronome |
 | **S** | Toggle Sustain Mode |
-| **+** / **-** | Next / Previous SoundFont |
+| **Arr Left/Right** | Prev / Next SoundFont |
+| **Arr Up/Down** | Prev / Next Instrument |
+| **+** / **-** | Prev / Next SoundFont (Alternate) |
 | **L** | Line Mode |
 | **B** | Gradient Mode |
 | **E** | Eraser Mode |

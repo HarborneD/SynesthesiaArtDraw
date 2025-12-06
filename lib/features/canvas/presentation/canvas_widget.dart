@@ -16,7 +16,7 @@ class CanvasWidget extends StatefulWidget {
   final ValueChanged<DrawnLine> onCurrentLineUpdated;
   final ValueChanged<DrawnLine> onLineCompleted;
   final ValueChanged<DrawnLine> onLineDeleted;
-  final ValueChanged<int> onNoteTriggered;
+  final Function(int, DrawnLine) onNoteTriggered;
 
   const CanvasWidget({
     super.key,
@@ -25,7 +25,7 @@ class CanvasWidget extends StatefulWidget {
     required this.segmentLength,
     required this.minPixels,
     required this.lines,
-    required this.currentLine,
+    this.currentLine,
     required this.drawingMode,
     required this.onCurrentLineUpdated,
     required this.onLineCompleted,
@@ -186,7 +186,14 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     }
 
     if (shouldTrigger) {
-      widget.onNoteTriggered(noteIndex);
+      // Check if we already triggered this note for this line recently?
+      // For now, stateless trigger is fine. State is managed by HomePage.
+
+      // Callback with index AND line source
+      widget.onNoteTriggered(noteIndex, widget.currentLine!);
+
+      // Debug
+      // debugPrint("Triggered Note Index: $noteIndex from line length ${widget.currentLine!.path.length}");
       _lastTriggerPoint = currentPoint;
       _lastTriggerNoteIndex = noteIndex;
     }

@@ -11,6 +11,16 @@ class DrawnLine {
   final List<DrawingPoint> path;
   final Color color;
   final double width;
+  final String? soundFont;
+  final int? program;
+  final int? sfId;
 
-  DrawnLine({required this.path, this.color = Colors.black, this.width = 2.0});
+  DrawnLine({
+    required this.path,
+    this.color = Colors.black,
+    this.width = 2.0,
+    this.soundFont,
+    this.program,
+    this.sfId,
+  });
 }
