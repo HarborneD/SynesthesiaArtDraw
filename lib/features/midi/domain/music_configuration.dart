@@ -22,6 +22,7 @@ class MusicConfiguration {
   final int droneDensity;
   final DroneMapping droneMapping;
   final int droneInstrument; // MIDI Program Number
+  final String droneSoundFont; // NEW: SoundFont for Drone
 
   int get totalBeats => gridBars * 4;
 
@@ -59,7 +60,7 @@ class MusicConfiguration {
     this.selectedKey = 'A',
     this.selectedScale = 'Minor',
     List<String>? selectedDegrees,
-    this.directionChangeThreshold = 0.5, // Sensitivity
+    this.directionChangeThreshold = 90.0, // FIX: Default to 90 degrees
     this.gridBars = 8,
     this.showPlayLine = true,
     this.droneEnabled = true,
@@ -67,20 +68,9 @@ class MusicConfiguration {
     this.droneDensity = 3,
     this.droneMapping = DroneMapping.tonal,
     this.droneInstrument = 49, // Strings Ensemble 2
+    this.droneSoundFont = 'White Grand Piano II.sf2',
   }) : selectedDegrees = selectedDegrees ?? _getDefaultDegrees();
-
-  static List<String> _getDefaultDegrees() {
-    final fullScale = getDegreesInScale('A', 'Minor');
-    // Default Filter: Remove 2nd (index 1), 6th (index 5), 7th (index 6)
-    // Degrees: 1, 2, 3, 4, 5, 6, 7
-    // Indices: 0, 1, 2, 3, 4, 5, 6
-    // Keep: 0, 2, 3, 4
-    if (fullScale.length >= 7) {
-      return [fullScale[0], fullScale[2], fullScale[3], fullScale[4]];
-    }
-    return fullScale;
-  }
-
+  // ...
   MusicConfiguration copyWith({
     double? octaves,
     double? tempo,
@@ -95,6 +85,7 @@ class MusicConfiguration {
     int? droneDensity,
     DroneMapping? droneMapping,
     int? droneInstrument,
+    String? droneSoundFont,
   }) {
     return MusicConfiguration(
       octaves: octaves ?? this.octaves,
@@ -112,57 +103,11 @@ class MusicConfiguration {
       droneDensity: droneDensity ?? this.droneDensity,
       droneMapping: droneMapping ?? this.droneMapping,
       droneInstrument: droneInstrument ?? this.droneInstrument,
+      droneSoundFont: droneSoundFont ?? this.droneSoundFont,
     );
   }
 
-  static List<String> getDegreesInScale(String key, String scaleName) {
-    if (scaleName == 'Chromatic') {
-      return keys;
-    }
-
-    try {
-      final tonicName = scaleNameMap[scaleName] ?? scaleName;
-      final scalePattern = ScalePattern.findByName(tonicName);
-      if (scalePattern == null) return [];
-
-      final root = Pitch.parse(key);
-      final scale = scalePattern.at(root.pitchClass);
-
-      return scale.intervals.map((interval) {
-        return (root + interval).toString();
-      }).toList();
-    } catch (e) {
-      return [];
-    }
-  }
-
-  // Logic to return active octave indices
-  // 1 octave: [4]
-  // 2 octaves: [4, 5]
-  // 3 octaves: [3, 4, 5]
-  // 4 octaves: [3, 4, 5, 6]
-  // etc.
-  // Alternating adding above then below starting from 4.
-  List<int> getActiveOctaves() {
-    final int count = octaves.round();
-    if (count <= 0) return [];
-
-    List<int> result = [4];
-    if (count == 1) return result;
-
-    for (int i = 1; i < count; i++) {
-      if (i % 2 != 0) {
-        // Add above
-        result.add(result.last + 1);
-      } else {
-        // Add below
-        result.insert(0, result.first - 1);
-      }
-    }
-    result.sort();
-    return result;
-  }
-
+  // ...
   Map<String, dynamic> toJson() {
     return {
       'octaves': octaves,
@@ -178,6 +123,7 @@ class MusicConfiguration {
       'droneDensity': droneDensity,
       'droneMapping': droneMapping.name,
       'droneInstrument': droneInstrument,
+      'droneSoundFont': droneSoundFont,
     };
   }
 
@@ -191,7 +137,7 @@ class MusicConfiguration {
           ?.map((e) => e as String)
           .toList(),
       directionChangeThreshold:
-          (json['directionChangeThreshold'] as num?)?.toDouble() ?? 0.5,
+          (json['directionChangeThreshold'] as num?)?.toDouble() ?? 90.0,
       gridBars: json['gridBars'] as int? ?? 8,
       showPlayLine: json['showPlayLine'] as bool? ?? true,
       droneEnabled: json['droneEnabled'] as bool? ?? true,
@@ -202,7 +148,62 @@ class MusicConfiguration {
         orElse: () => DroneMapping.tonal,
       ),
       droneInstrument: json['droneInstrument'] as int? ?? 49,
+      droneSoundFont:
+          json['droneSoundFont'] as String? ?? 'White Grand Piano II.sf2',
     );
+  }
+
+  static List<String> _getDefaultDegrees() {
+    return ['1', '3', '5'];
+  }
+
+  List<int> getActiveOctaves() {
+    List<int> octs = [];
+    int start = 3;
+    for (int i = 0; i < octaves; i++) {
+      octs.add(start + i);
+    }
+    return octs;
+  }
+
+  static List<String> getDegreesInScale(String keyName, String scaleName) {
+    // Helper to get degree names like "1", "b2" etc from the selected scale
+    // note: keyName is unused for relative degrees, but kept for signature compatibility
+    final actualScaleName = scaleNameMap[scaleName] ?? 'Natural Minor';
+
+    try {
+      final pattern = ScalePattern.findByName(actualScaleName);
+      return pattern.intervals.map((i) => _intervalToString(i)).toList();
+    } catch (e) {
+      return ['1', '2', '3', '4', '5', '6', '7'];
+    }
+  }
+
+  static String _intervalToString(Interval interval) {
+    int semitones = interval.semitones;
+    // Map semitones to degree name relative to Major scale steps
+    const names = [
+      '1',
+      'b2',
+      '2',
+      'b3',
+      '3',
+      '4',
+      'b5',
+      '5',
+      'b6',
+      '6',
+      'b7',
+      '7',
+    ];
+    // Handle intervals > Octave if necessary, though scales usually fit in octave
+    int index = semitones % 12;
+
+    // Special case for semitones=12 (Octave) -> '1' or '8'? Usually implied.
+    // But standard Interval map: 0->1.
+
+    if (index >= 0 && index < 12) return names[index];
+    return interval.number.toString();
   }
 
   /// Returns a sorted list of MIDI note numbers for the current configuration.

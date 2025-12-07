@@ -85,6 +85,7 @@ class _HomePageState extends State<HomePage>
   String _selectedSoundFont = 'White Grand Piano II.sf2'; // Default
   int _selectedInstrumentIndex = 0;
   int _sfId = 0;
+  int _droneSfId = 0;
   List<InstrumentPreset> _presets = [];
 
   // Canvas Library State
@@ -159,22 +160,57 @@ class _HomePageState extends State<HomePage>
   }
   */
 
+    // Load Drawing SoundFont
     await _loadSoundFont(_selectedSoundFont);
 
+    // Load Drone SoundFont
+    await _loadDroneSoundFont(_musicConfig.droneSoundFont);
+
     // Initialize Drone Channel (1)
+    /*
     try {
       await _midi.selectInstrument(
-        sfId: _sfId,
+        sfId: _droneSfId,
         program: _musicConfig.droneInstrument,
         channel: 1,
       );
     } catch (e) {
       debugPrint("Failed to init Drone instrument: $e");
     }
+    */
+    // Defer instrument selection to _updateDroneConfig or just do it here:
+    _updateDroneInstrument();
 
     setState(() {
       _isMidiInitialized = true;
     });
+  }
+
+  Future<void> _loadDroneSoundFont(String fileName) async {
+    try {
+      if (_loadedSoundFonts.containsKey(fileName)) {
+        _droneSfId = _loadedSoundFonts[fileName]!;
+      } else {
+        final path = 'assets/sounds_fonts/$fileName';
+        _droneSfId = await _midi.loadSoundfontAsset(assetPath: path);
+        _loadedSoundFonts[fileName] = _droneSfId;
+        debugPrint("Loaded Drone SoundFont: $path (ID: $_droneSfId)");
+      }
+    } catch (e) {
+      debugPrint("Error loading Drone SoundFont: $e");
+    }
+  }
+
+  void _updateDroneInstrument() {
+    try {
+      _midi.selectInstrument(
+        sfId: _droneSfId,
+        program: _musicConfig.droneInstrument,
+        channel: 1,
+      );
+    } catch (e) {
+      debugPrint("Failed to update Drone instrument: $e");
+    }
   }
 
   Future<void> _loadSoundFont(String fileName) async {
@@ -440,6 +476,7 @@ class _HomePageState extends State<HomePage>
         _midi.stopNote(
           key: note,
           channel: 1, // Drone Channel
+          sfId: _droneSfId,
         );
       }
     }
@@ -450,9 +487,8 @@ class _HomePageState extends State<HomePage>
         _midi.playNote(
           key: note,
           velocity: 80,
-          channel:
-              1, // Drone Channel - ensure SoundFont supports it or use Channel 0 if needed?
-          // Using Channel 1 needs a program change or it defaults to Piano.
+          channel: 1, // Drone Channel
+          sfId: _droneSfId, // Use Drone SF
         );
       }
     }
@@ -688,9 +724,23 @@ class _HomePageState extends State<HomePage>
   void _updateConfig(MusicConfiguration config) {
     final bool tempoChanged = config.tempo != _musicConfig.tempo;
     final bool barsChanged = config.gridBars != _musicConfig.gridBars;
+    final bool droneSfChanged =
+        config.droneSoundFont != _musicConfig.droneSoundFont;
+    final bool droneInstChanged =
+        config.droneInstrument != _musicConfig.droneInstrument;
+
     setState(() {
       _musicConfig = config;
     });
+
+    if (droneSfChanged) {
+      _loadDroneSoundFont(config.droneSoundFont).then((_) {
+        _updateDroneInstrument();
+      });
+    } else if (droneInstChanged) {
+      _updateDroneInstrument();
+    }
+
     if ((tempoChanged || barsChanged) && _isPlaying) {
       _startTimer();
     }
@@ -795,6 +845,7 @@ class _HomePageState extends State<HomePage>
           config: _musicConfig,
           onConfigChanged: _updateConfig,
           currentDetectedColor: _currentDroneColor,
+          availableSoundFonts: _soundFonts,
         );
       case 6:
         return AppSettingsPane(

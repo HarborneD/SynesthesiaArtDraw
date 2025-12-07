@@ -5,12 +5,14 @@ class DroneSettingsPane extends StatelessWidget {
   final MusicConfiguration config;
   final ValueChanged<MusicConfiguration> onConfigChanged;
   final Color currentDetectedColor;
+  final List<String> availableSoundFonts;
 
   const DroneSettingsPane({
     super.key,
     required this.config,
     required this.onConfigChanged,
     required this.currentDetectedColor,
+    required this.availableSoundFonts,
   });
 
   @override
@@ -87,6 +89,22 @@ class DroneSettingsPane extends StatelessWidget {
                 },
               ),
             ],
+          ),
+
+          const SizedBox(height: 10),
+          const Text('Drone Sound Font:'),
+          DropdownButton<String>(
+            value: config.droneSoundFont,
+            isExpanded: true,
+            hint: const Text('Select Sound Font'),
+            items: availableSoundFonts.map((sf) {
+              return DropdownMenuItem(value: sf, child: Text(sf));
+            }).toList(),
+            onChanged: (val) {
+              if (val != null) {
+                onConfigChanged(config.copyWith(droneSoundFont: val));
+              }
+            },
           ),
 
           const SizedBox(height: 10),
