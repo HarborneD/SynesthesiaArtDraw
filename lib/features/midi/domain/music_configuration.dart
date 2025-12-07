@@ -68,7 +68,7 @@ class MusicConfiguration {
     this.droneDensity = 3,
     this.droneMapping = DroneMapping.tonal,
     this.droneInstrument = 49, // Strings Ensemble 2
-    this.droneSoundFont = 'White Grand Piano II.sf2',
+    this.droneSoundFont = 'casio_sk_200_gm.sf2',
   }) : selectedDegrees = selectedDegrees ?? _getDefaultDegrees();
   // ...
   MusicConfiguration copyWith({
@@ -155,7 +155,7 @@ class MusicConfiguration {
       ),
       droneInstrument: json['droneInstrument'] as int? ?? 49,
       droneSoundFont:
-          json['droneSoundFont'] as String? ?? 'casio sk-200 gm sf2.sf2',
+          json['droneSoundFont'] as String? ?? 'casio_sk_200_gm.sf2',
     );
   }
 
@@ -212,22 +212,55 @@ class MusicConfiguration {
     return interval.number.toString();
   }
 
+  static const Map<String, int> _degreeToSemitonesMap = {
+    '1': 0,
+    'b2': 1,
+    '2': 2,
+    'b3': 3,
+    '3': 4,
+    '4': 5,
+    'b5': 6,
+    '5': 7,
+    'b6': 8,
+    '6': 9,
+    'b7': 10,
+    '7': 11,
+  };
+
   /// Returns a sorted list of MIDI note numbers for the current configuration.
   List<int> getAllMidiNotes() {
     final activeOctaves = getActiveOctaves();
     final Set<int> notes = {};
 
+    // Get Root Pitch Class from Key (0-11)
+    // Tonic's Pitch.parse handles "C", "C#", "Db" etc.
+    int rootPitch = 0;
+    try {
+      rootPitch = Pitch.parse(selectedKey).pitchClass.integer;
+    } catch (e) {
+      // Fallback to A=9 if parse fails
+      rootPitch = 9;
+    }
+
     for (final octave in activeOctaves) {
       for (final degree in selectedDegrees) {
         try {
-          final pitchClass = Pitch.parse(degree).pitchClass.integer;
-          // MIDI Note = (Octave + 1) * 12 + PitchClass
-          final midi = (octave + 1) * 12 + pitchClass;
-          if (midi >= 0 && midi <= 127) {
-            notes.add(midi);
+          final semitones = _degreeToSemitonesMap[degree];
+          if (semitones != null) {
+            // MIDI Note = (Octave + 1) * 12 + Root + Semitones
+            // Octave 3 usually starts at MIDI 48 (C3) or 60 (C4)?
+            // Standard: C4 = MIDI 60. Octave 4.
+            // Logic used before: (octave + 1) * 12 + pitchClass.
+            // If octave=3, 4 * 12 = 48 (C3).
+            // Let's stick to that convention.
+
+            final midi = (octave + 1) * 12 + rootPitch + semitones;
+            if (midi >= 0 && midi <= 127) {
+              notes.add(midi);
+            }
           }
         } catch (e) {
-          // Ignore parse errors
+          // Ignore
         }
       }
     }

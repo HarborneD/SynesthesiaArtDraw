@@ -109,7 +109,7 @@ class _HomePageState extends State<HomePage>
     'White Grand Piano II.sf2',
     'White Grand Piano III.sf2',
     'White Grand Piano V.sf2',
-    'casio sk-200 gm sf2.sf2',
+    'casio_sk_200_gm.sf2',
     'mick_gordon_string_efx.sf2',
   ];
 
@@ -179,7 +179,11 @@ class _HomePageState extends State<HomePage>
     }
     */
     // Defer instrument selection to _updateDroneConfig or just do it here:
-    _updateDroneInstrument();
+    try {
+      await _updateDroneInstrument();
+    } catch (e) {
+      debugPrint("Warning: Failed to init drone instrument: $e");
+    }
 
     setState(() {
       _isMidiInitialized = true;
@@ -201,9 +205,9 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  void _updateDroneInstrument() {
+  Future<void> _updateDroneInstrument() async {
     try {
-      _midi.selectInstrument(
+      await _midi.selectInstrument(
         sfId: _droneSfId,
         program: _musicConfig.droneInstrument,
         channel: 1,
@@ -735,6 +739,7 @@ class _HomePageState extends State<HomePage>
       duration,
       sfId: _sfId, // Use Drawing SF
     );
+    debugPrint("Triggered Line Sound: Note $note, SF ID: $_sfId");
   }
 
   // Helper to play note with duration (prevents infinite sustain)
