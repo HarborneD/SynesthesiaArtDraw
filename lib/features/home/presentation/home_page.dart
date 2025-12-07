@@ -17,6 +17,7 @@ import 'package:synesthesia_art_draw/features/instrument/presentation/preset_lib
 import 'package:synesthesia_art_draw/features/instrument/domain/instrument_preset.dart';
 import '../../instrument/presentation/instrument_settings_pane.dart';
 import '../../sequencer/presentation/sequencer_settings_pane.dart';
+import '../../drone/presentation/drone_settings_pane.dart';
 import '../../settings/presentation/app_settings_pane.dart';
 import '../../toolbar/presentation/toolbar_widget.dart';
 import '../../drawing/domain/drawing_mode.dart';
@@ -67,6 +68,12 @@ class _HomePageState extends State<HomePage>
   // MIDI State
   final _midi = MidiPro();
   bool _isMidiInitialized = false;
+  final _playerDown = AudioPlayer();
+  final _playerUp = AudioPlayer();
+
+  // Drone State
+  Color _currentDroneColor = Colors.black;
+  List<int> _activeDroneNotes = [];
   bool _isReverbOn = true; // Default ON
   double _reverbDelay = 500.0; // Default 500ms
   double _reverbDecay = 0.6; // Default 60% decay
@@ -95,21 +102,16 @@ class _HomePageState extends State<HomePage>
     'mick_gordon_string_efx.sf2',
   ];
 
-  // Audio State
-  final AudioPlayer _playerDown = AudioPlayer();
-  final AudioPlayer _playerUp = AudioPlayer();
-
   // Track loaded SoundFonts to get their IDs
   // Filename -> ID
   final Map<String, int> _loadedSoundFonts = {};
 
-  // ...
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _initMidi();
-    _loadSoundFont(_selectedSoundFont);
+    _initMidi(); // This handles loading the initial SoundFont
     _loadShader();
     _loadPresets();
     _playLineController = AnimationController(
@@ -146,6 +148,18 @@ class _HomePageState extends State<HomePage>
   */
 
     await _loadSoundFont(_selectedSoundFont);
+
+    // Initialize Drone Channel (1)
+    try {
+      await _midi.selectInstrument(
+        sfId: _sfId,
+        program: 49, // Strings
+        channel: 1,
+      );
+    } catch (e) {
+      debugPrint("Failed to init Drone instrument: $e");
+    }
+
     setState(() {
       _isMidiInitialized = true;
     });
@@ -224,6 +238,9 @@ class _HomePageState extends State<HomePage>
       _playerDown.stop();
       _playerUp.stop();
 
+      // Stop Drone Notes
+      _updateDroneNotes([]);
+
       // Stop MIDI (Best effort)
       // flutter_midi_pro doesn't have a global "stop all", but we can rely on our duration logic
       // to eventually clean up. If we need immediate silence, we'd need to track active notes.
@@ -248,6 +265,7 @@ class _HomePageState extends State<HomePage>
     _playLineController.dispose();
     _playerDown.dispose();
     _playerUp.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -307,8 +325,233 @@ class _HomePageState extends State<HomePage>
       player.play(source);
     }
 
+    // Check for Drone Updates (Bar Boundary)
+    if (_musicConfig.droneEnabled && _currentTick == 0) {
+      // We are at the start of a Bar. Check if we should update based on interval.
+      // Total Bars Elapsed calculation would be better, but we only have 0-31 ticks.
+      // Actually we have `_currentTick` which loops 0 -> totalBeats-1.
+      // Since `_currentTick` wraps, we trigger every loop start (Bar 1).
+      // But we want "Every N Bars".
+      // We need a global "Bar Counter" or similar.
+      // For now, let's trigger every Loop start for now, or track absolute bars.
+      _processDroneLogic();
+    }
+
     // Check for line triggers
     _checkLineTriggers();
+
+    // REMOVED: Duplicate setState increment.
+    // The increment happens in the Timer callback in _startTimer.
+  }
+
+  void _processDroneLogic() {
+    // 1. Get Scan Line Color
+    final scanX = _playLineController.value; // 0.0 to 1.0
+    final color = _getScanLineColor(scanX);
+    _currentDroneColor = color;
+
+    // 2. Determine Harmonic Function
+    final hsl = HSLColor.fromColor(color);
+    final hue = hsl.hue;
+
+    // 3. Map Hue to Scale Degrees
+    // Red/Orange (330-30) -> Tonic (I) -> Degrees 1, 3, 5, 7
+    // Green/Yellow (60-180) -> Subdominant (IV) -> Degrees 4, 6, 1, 3 (relative to tonic)
+    // Blue/Violet (180-300) -> Dominant (V) -> Degrees 5, 7, 2, 4
+
+    List<int> targetDegrees = [];
+
+    // Simplified mapping based on diatonic steps (1-based index in selectedDegrees)
+    // NOTE: selectedDegrees are Strings "1", "b3", etc.
+    // We need to map Function -> abstract degrees -> find in available scale degrees.
+    // Let's assume standard index logic: Tonic=0,2,4; Sub=3,5,0; Dom=4,6,1.
+
+    if (hue >= 330 || hue <= 30) {
+      // Tonic (1, 3, 5) => Indices 0, 2, 4
+      targetDegrees = [0, 2, 4];
+    } else if (hue >= 60 && hue <= 180) {
+      // Subdominant (4, 6, 1) => Indices 3, 5, 0
+      targetDegrees = [3, 5, 0];
+    } else if (hue > 180 && hue < 300) {
+      // Dominant (5, 7, 2) => Indices 4, 6, 1
+      targetDegrees = [4, 6, 1];
+    } else {
+      // Transition/Other -> Tonic
+      targetDegrees = [0, 2, 4];
+    }
+
+    // 4. Generate Notes
+    // Convert abstract indices to actual MIDI notes based on Key/Scale
+    // Filter by what is actually enabled in `_musicConfig.selectedDegrees`?
+    // Usually a drone uses the underlying scale.
+    // Let's use `MidiPro` helper if available or manual calculation.
+
+    // 4. Generate Notes
+    // Convert abstract indices to actual MIDI notes based on Key/Scale
+
+    final rootNote = _noteNameToMidi(_musicConfig.selectedKey);
+    final scaleOffsets = _getScaleOffsets(_musicConfig.selectedScale);
+
+    List<int> newNotes = [];
+    int baseOctave = 3; // Low drone
+
+    // Generate notes for the configured density
+    for (int i = 0; i < _musicConfig.droneDensity; i++) {
+      // Wrap around available degrees
+      final degreeIndex = targetDegrees[i % targetDegrees.length];
+
+      // Safety check
+      if (degreeIndex < scaleOffsets.length) {
+        int offset = scaleOffsets[degreeIndex];
+        int note = rootNote + offset + (baseOctave * 12);
+
+        // Spread high notes up an octave
+        if (i >= 3) note += 12;
+
+        newNotes.add(note);
+      }
+    }
+
+    // 5. Playback Update
+    _updateDroneNotes(newNotes);
+  }
+
+  void _updateDroneNotes(List<int> newNotes) {
+    // Basic diffing to avoid re-triggering held notes?
+    // For now, kill all -> start new (Legato-ish?)
+    // Or sustain if same?
+
+    // Stop old notes that are NOT in new set
+    for (final note in _activeDroneNotes) {
+      if (!newNotes.contains(note)) {
+        _midi.stopNote(
+          key: note,
+          channel: 1, // Drone Channel
+        );
+      }
+    }
+
+    // Start new notes that were NOT in old set
+    for (final note in newNotes) {
+      if (!_activeDroneNotes.contains(note)) {
+        _midi.playNote(
+          key: note,
+          velocity: 80,
+          channel:
+              1, // Drone Channel - ensure SoundFont supports it or use Channel 0 if needed?
+          // Using Channel 1 needs a program change or it defaults to Piano.
+        );
+      }
+    }
+    _activeDroneNotes = newNotes;
+  }
+
+  Color _getScanLineColor(double xPercent) {
+    // 1. Check Drawn Lines (Priority)
+    // We check lines first because they are "on top" usually.
+    final xPos = xPercent * MediaQuery.of(context).size.width;
+
+    int lineCount = 0;
+    double r = 0, g = 0, b = 0;
+
+    for (final line in _lines) {
+      if (line.path.length < 2) continue;
+      // Optimization: Check bounds of entire line first?
+      // For now, segment check is robust.
+      for (int i = 0; i < line.path.length - 1; i++) {
+        final p1 = line.path[i].point;
+        final p2 = line.path[i + 1].point;
+
+        // Check if the scan line (vertical at xPos) intersects this segment
+        // Simple X-range check.
+        if ((p1.dx <= xPos && p2.dx >= xPos) ||
+            (p1.dx >= xPos && p2.dx <= xPos)) {
+          // Found intersection.
+          // Color might be solid or dependent on segment?
+          // `line.color` is the base.
+          final c = line.color;
+          r += c.red;
+          g += c.green;
+          b += c.blue;
+          lineCount++;
+          break; // Count line once per scan to avoid double-weighting zig-zags
+        }
+      }
+    }
+
+    if (lineCount > 0) {
+      return Color.fromARGB(
+        255,
+        (r / lineCount).round(),
+        (g / lineCount).round(),
+        (b / lineCount).round(),
+      );
+    }
+
+    // 2. Check Background Gradients (Fallback)
+    // If no lines, we sample the background.
+    // We need to approximate the color at xPercent.
+    if (_gradientStrokes.isNotEmpty) {
+      // Find the most recent stroke that covers this area, or blend them?
+      // Shader blends them.
+      // Let's iterate in reverse (topmost first) or blend all.
+      // Since it's a "field", blending all might be safer.
+
+      double totalWeight = 0.0;
+      double bgR = 0, bgG = 0, bgB = 0;
+
+      for (final stroke in _gradientStrokes) {
+        // GradientStroke has p0 (start), p1 (end), colors, stops.
+
+        final distStart = (stroke.p0.dx - xPos).abs();
+        final distEnd = (stroke.p1.dx - xPos).abs();
+
+        // Simple Inverse Distance Weighting
+        final weight = 1.0 / (distStart + distEnd + 1.0);
+
+        // Interpolate between colors based on projected position t
+        final dx = stroke.p1.dx - stroke.p0.dx;
+        final dy = stroke.p1.dy - stroke.p0.dy;
+        final lenSq = dx * dx + dy * dy;
+
+        final yPos = MediaQuery.of(context).size.height / 2;
+
+        double t = 0.5;
+        if (lenSq > 0) {
+          t = ((xPos - stroke.p0.dx) * dx + (yPos - stroke.p0.dy) * dy) / lenSq;
+        }
+        t = t.clamp(0.0, 1.0);
+
+        // Interpolate color from stops
+        // If we have > 2 colors, we need to find which stops we are between.
+        // For now, simplify: assume 2 colors (start/end) or first/last.
+        final c1 = stroke.colors.first;
+        final c2 = stroke.colors.last;
+
+        // Or better, find stops.
+        // Let's stick to simple start/end for the user's "Rainbow" requirement.
+
+        final mixedR = c1.red + (c2.red - c1.red) * t;
+        final mixedG = c1.green + (c2.green - c1.green) * t;
+        final mixedB = c1.blue + (c2.blue - c1.blue) * t;
+
+        bgR += mixedR * weight;
+        bgG += mixedG * weight;
+        bgB += mixedB * weight;
+        totalWeight += weight;
+      }
+
+      if (totalWeight > 0) {
+        return Color.fromARGB(
+          255,
+          (bgR / totalWeight).round(),
+          (bgG / totalWeight).round(),
+          (bgB / totalWeight).round(),
+        );
+      }
+    }
+
+    return Colors.black; // Fallback
   }
 
   void _checkLineTriggers() {
@@ -467,6 +710,12 @@ class _HomePageState extends State<HomePage>
           onConfigChanged: _updateConfig,
         );
       case 5:
+        return DroneSettingsPane(
+          config: _musicConfig,
+          onConfigChanged: _updateConfig,
+          currentDetectedColor: _currentDroneColor,
+        );
+      case 6:
         return AppSettingsPane(
           showNoteLines: _showNoteLines,
           onShowNoteLinesChanged: (value) {
@@ -665,10 +914,15 @@ class _HomePageState extends State<HomePage>
   Widget build(BuildContext context) {
     return Scaffold(
       body: RawKeyboardListener(
-        focusNode: FocusNode(),
+        focusNode: _focusNode,
         autofocus: true,
         onKey: _handleKeyEvent,
         child: Listener(
+          onPointerDown: (_) {
+            if (!_focusNode.hasFocus) {
+              FocusScope.of(context).requestFocus(_focusNode);
+            }
+          },
           onPointerSignal: _handleScroll,
           child: Column(
             children: [
@@ -886,5 +1140,45 @@ class _HomePageState extends State<HomePage>
         ),
       ),
     );
+  }
+
+  // Helper Methods for MIDI Logic
+  static int _noteNameToMidi(String noteName) {
+    const notes = [
+      'C',
+      'C#',
+      'D',
+      'D#',
+      'E',
+      'F',
+      'F#',
+      'G',
+      'G#',
+      'A',
+      'A#',
+      'B',
+    ];
+    final index = notes.indexOf(noteName);
+    return index != -1 ? index : 0;
+  }
+
+  static List<int> _getScaleOffsets(String scaleName) {
+    // Basic offsets for common scales
+    switch (scaleName) {
+      case 'Major':
+        return [0, 2, 4, 5, 7, 9, 11, 12];
+      case 'Minor':
+        return [0, 2, 3, 5, 7, 8, 10, 12];
+      case 'Pentatonic Major':
+        return [0, 2, 4, 7, 9, 12];
+      case 'Pentatonic Minor':
+        return [0, 3, 5, 7, 10, 12];
+      case 'Blues':
+        return [0, 3, 5, 6, 7, 10, 12];
+      case 'Chromatic':
+        return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+      default:
+        return [0, 2, 4, 5, 7, 9, 11, 12]; // Default to Major
+    }
   }
 }

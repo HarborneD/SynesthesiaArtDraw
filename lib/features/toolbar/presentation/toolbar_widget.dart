@@ -48,12 +48,18 @@ class ToolbarWidget extends StatelessWidget {
             label: 'Seq',
             index: 4,
           ),
+          _buildToolbarButton(
+            context,
+            icon: Icons.graphic_eq, // Drone / EQ icon
+            label: 'Drone',
+            index: 5,
+          ),
           const Spacer(),
           _buildToolbarButton(
             context,
             icon: Icons.settings,
             label: 'Settings',
-            index: 5,
+            index: 6,
           ),
           const SizedBox(height: 16),
         ],

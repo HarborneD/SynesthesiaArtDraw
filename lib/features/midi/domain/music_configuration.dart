@@ -1,5 +1,7 @@
 import 'package:tonic/tonic.dart';
 
+enum DroneMapping { tonal, modal, chromatic }
+
 class MusicConfiguration {
   final double octaves;
   final double tempo;
@@ -13,6 +15,12 @@ class MusicConfiguration {
   // Grid / Sequencer
   final int gridBars;
   final bool showPlayLine;
+
+  // Drone
+  final bool droneEnabled;
+  final int droneUpdateIntervalBars;
+  final int droneDensity;
+  final DroneMapping droneMapping;
 
   int get totalBeats => gridBars * 4;
 
@@ -50,9 +58,13 @@ class MusicConfiguration {
     this.selectedKey = 'A',
     this.selectedScale = 'Minor',
     List<String>? selectedDegrees,
-    this.directionChangeThreshold = 90.0,
-    this.gridBars = 4,
+    this.directionChangeThreshold = 0.5, // Sensitivity
+    this.gridBars = 8,
     this.showPlayLine = true,
+    this.droneEnabled = false,
+    this.droneUpdateIntervalBars = 2,
+    this.droneDensity = 3,
+    this.droneMapping = DroneMapping.tonal,
   }) : selectedDegrees = selectedDegrees ?? _getDefaultDegrees();
 
   static List<String> _getDefaultDegrees() {
@@ -76,6 +88,10 @@ class MusicConfiguration {
     double? directionChangeThreshold,
     int? gridBars,
     bool? showPlayLine,
+    bool? droneEnabled,
+    int? droneUpdateIntervalBars,
+    int? droneDensity,
+    DroneMapping? droneMapping,
   }) {
     return MusicConfiguration(
       octaves: octaves ?? this.octaves,
@@ -87,6 +103,11 @@ class MusicConfiguration {
           directionChangeThreshold ?? this.directionChangeThreshold,
       gridBars: gridBars ?? this.gridBars,
       showPlayLine: showPlayLine ?? this.showPlayLine,
+      droneEnabled: droneEnabled ?? this.droneEnabled,
+      droneUpdateIntervalBars:
+          droneUpdateIntervalBars ?? this.droneUpdateIntervalBars,
+      droneDensity: droneDensity ?? this.droneDensity,
+      droneMapping: droneMapping ?? this.droneMapping,
     );
   }
 
