@@ -677,7 +677,8 @@ class _HomePageState extends State<HomePage>
   void _setReverb(double level) {
     // Level 0.0 to 1.0 -> 0 to 127
     final val = (level.clamp(0.0, 1.0) * 127).toInt();
-    _midi.sendControlChange(channel: 0, controller: 91, value: val);
+    // _midi.sendControlChange(channel: 0, controller: 91, value: val);
+    debugPrint("Reverb CC 91: $val (Not supported by flutter_midi_pro yet)");
     // Also send to Drone channel just in case? Or separate knob?
     // Let's assume global reverb for now or just instrument.
     // User requested separate reverb, likely for the instrument.
@@ -1004,9 +1005,10 @@ class _HomePageState extends State<HomePage>
       _minPixels = preset.minPixelsForTrigger;
       _selectedSoundFont = preset.soundFont;
       _selectedInstrumentIndex = preset.programIndex;
-      _isReverbOn = preset.isReverbOn;
-      _reverbDelay = preset.reverbDelay;
-      _reverbDecay = preset.reverbDecay;
+      _isDelayOn = preset.isDelayOn;
+      _delayTime = preset.delayTime;
+      _delayFeedback = preset.delayFeedback;
+      _reverbLevel = preset.reverbLevel;
       _isSustainOn = preset.isSustainOn;
 
       _updateConfig(
@@ -1021,7 +1023,7 @@ class _HomePageState extends State<HomePage>
     setState(() {
       _presets.remove(preset);
     });
-    _savePresets();
+    _savePresetsToDisk();
   }
 
   @override

@@ -15,6 +15,8 @@ class InstrumentPreset {
   final double delayTime; // Renamed from reverbDelay
   final double delayFeedback; // Renamed from reverbDecay
   final double reverbLevel; // New True Reverb (0-127 or 0.0-1.0)
+  final bool isSustainOn;
+  final double directionChangeThreshold;
 
   InstrumentPreset({
     required this.name,
