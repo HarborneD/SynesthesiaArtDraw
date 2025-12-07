@@ -21,6 +21,7 @@ class MusicConfiguration {
   final int droneUpdateIntervalBars;
   final int droneDensity;
   final DroneMapping droneMapping;
+  final int droneInstrument; // MIDI Program Number
 
   int get totalBeats => gridBars * 4;
 
@@ -61,10 +62,11 @@ class MusicConfiguration {
     this.directionChangeThreshold = 0.5, // Sensitivity
     this.gridBars = 8,
     this.showPlayLine = true,
-    this.droneEnabled = false,
-    this.droneUpdateIntervalBars = 2,
+    this.droneEnabled = true,
+    this.droneUpdateIntervalBars = 1,
     this.droneDensity = 3,
     this.droneMapping = DroneMapping.tonal,
+    this.droneInstrument = 49, // Strings Ensemble 2
   }) : selectedDegrees = selectedDegrees ?? _getDefaultDegrees();
 
   static List<String> _getDefaultDegrees() {
@@ -92,6 +94,7 @@ class MusicConfiguration {
     int? droneUpdateIntervalBars,
     int? droneDensity,
     DroneMapping? droneMapping,
+    int? droneInstrument,
   }) {
     return MusicConfiguration(
       octaves: octaves ?? this.octaves,
@@ -108,6 +111,7 @@ class MusicConfiguration {
           droneUpdateIntervalBars ?? this.droneUpdateIntervalBars,
       droneDensity: droneDensity ?? this.droneDensity,
       droneMapping: droneMapping ?? this.droneMapping,
+      droneInstrument: droneInstrument ?? this.droneInstrument,
     );
   }
 
@@ -157,6 +161,48 @@ class MusicConfiguration {
     }
     result.sort();
     return result;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'octaves': octaves,
+      'tempo': tempo,
+      'selectedKey': selectedKey,
+      'selectedScale': selectedScale,
+      'selectedDegrees': selectedDegrees,
+      'directionChangeThreshold': directionChangeThreshold,
+      'gridBars': gridBars,
+      'showPlayLine': showPlayLine,
+      'droneEnabled': droneEnabled,
+      'droneUpdateIntervalBars': droneUpdateIntervalBars,
+      'droneDensity': droneDensity,
+      'droneMapping': droneMapping.name,
+      'droneInstrument': droneInstrument,
+    };
+  }
+
+  factory MusicConfiguration.fromJson(Map<String, dynamic> json) {
+    return MusicConfiguration(
+      octaves: (json['octaves'] as num?)?.toDouble() ?? 3.0,
+      tempo: (json['tempo'] as num?)?.toDouble() ?? 92.0,
+      selectedKey: json['selectedKey'] as String? ?? 'A',
+      selectedScale: json['selectedScale'] as String? ?? 'Minor',
+      selectedDegrees: (json['selectedDegrees'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
+      directionChangeThreshold:
+          (json['directionChangeThreshold'] as num?)?.toDouble() ?? 0.5,
+      gridBars: json['gridBars'] as int? ?? 8,
+      showPlayLine: json['showPlayLine'] as bool? ?? true,
+      droneEnabled: json['droneEnabled'] as bool? ?? true,
+      droneUpdateIntervalBars: json['droneUpdateIntervalBars'] as int? ?? 1,
+      droneDensity: json['droneDensity'] as int? ?? 3,
+      droneMapping: DroneMapping.values.firstWhere(
+        (e) => e.name == (json['droneMapping'] as String?),
+        orElse: () => DroneMapping.tonal,
+      ),
+      droneInstrument: json['droneInstrument'] as int? ?? 49,
+    );
   }
 
   /// Returns a sorted list of MIDI note numbers for the current configuration.

@@ -6,12 +6,16 @@ class InstrumentSettingsPane extends StatefulWidget {
   final int selectedInstrumentIndex;
   final ValueChanged<int> onInstrumentChanged;
   final List<String> availableSoundFonts;
-  final bool isReverbOn;
-  final ValueChanged<bool> onReverbChanged;
-  final double reverbDelay;
-  final ValueChanged<double> onReverbDelayChanged;
-  final double reverbDecay;
-  final ValueChanged<double> onReverbDecayChanged;
+  final bool isDelayOn;
+  final ValueChanged<bool> onDelayChanged;
+  final double delayTime;
+  final ValueChanged<double> onDelayTimeChanged;
+  final double delayFeedback;
+  final ValueChanged<double> onDelayFeedbackChanged;
+
+  final double reverbLevel;
+  final ValueChanged<double> onReverbLevelChanged;
+
   final bool isSustainOn;
   final ValueChanged<bool> onSustainChanged;
   final double directionChangeThreshold;
@@ -24,12 +28,14 @@ class InstrumentSettingsPane extends StatefulWidget {
     required this.selectedInstrumentIndex,
     required this.onInstrumentChanged,
     required this.availableSoundFonts,
-    required this.isReverbOn,
-    required this.onReverbChanged,
-    required this.reverbDelay,
-    required this.onReverbDelayChanged,
-    required this.reverbDecay,
-    required this.onReverbDecayChanged,
+    required this.isDelayOn,
+    required this.onDelayChanged,
+    required this.delayTime,
+    required this.onDelayTimeChanged,
+    required this.delayFeedback,
+    required this.onDelayFeedbackChanged,
+    required this.reverbLevel,
+    required this.onReverbLevelChanged,
     required this.isSustainOn,
     required this.onSustainChanged,
     required this.directionChangeThreshold,
@@ -108,34 +114,47 @@ class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
           ),
           const SizedBox(height: 20),
           const Divider(),
+          // Delay Section
           SwitchListTile(
-            title: const Text('Reverb / Delay'),
-            subtitle: const Text('Add echo to notes'),
-            value: widget.isReverbOn,
-            onChanged: widget.onReverbChanged,
+            title: const Text('Tape Delay'),
+            subtitle: const Text('Echo effect'),
+            value: widget.isDelayOn,
+            onChanged: widget.onDelayChanged,
           ),
-          if (widget.isReverbOn) ...[
+          if (widget.isDelayOn) ...[
             const SizedBox(height: 10),
-            Text('Delay Time: ${widget.reverbDelay.toInt()} ms'),
+            Text('Time: ${widget.delayTime.toInt()} ms'),
             Slider(
-              value: widget.reverbDelay,
+              value: widget.delayTime,
               min: 50,
-              max: 5000,
-              divisions: 100,
-              label: '${widget.reverbDelay.toInt()} ms',
-              onChanged: widget.onReverbDelayChanged,
+              max: 2000,
+              divisions: 40,
+              label: '${widget.delayTime.toInt()} ms',
+              onChanged: widget.onDelayTimeChanged,
             ),
             const SizedBox(height: 10),
-            Text('Decay (Feedback): ${(widget.reverbDecay * 100).toInt()}%'),
+            Text('Feedback: ${(widget.delayFeedback * 100).toInt()}%'),
             Slider(
-              value: widget.reverbDecay,
+              value: widget.delayFeedback,
               min: 0.1,
               max: 0.9,
               divisions: 8,
-              label: '${(widget.reverbDecay * 100).toInt()}%',
-              onChanged: widget.onReverbDecayChanged,
+              label: '${(widget.delayFeedback * 100).toInt()}%',
+              onChanged: widget.onDelayFeedbackChanged,
             ),
           ],
+
+          const Divider(),
+          // Reverb Section
+          const Text('Room Reverb'),
+          Slider(
+            value: widget.reverbLevel,
+            min: 0.0,
+            max: 1.0,
+            divisions: 10,
+            label: '${(widget.reverbLevel * 100).toInt()}%',
+            onChanged: widget.onReverbLevelChanged,
+          ),
           const SizedBox(height: 20),
           const Divider(),
           SwitchListTile(

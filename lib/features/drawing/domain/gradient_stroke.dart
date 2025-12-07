@@ -30,4 +30,34 @@ class GradientStroke {
       intensity: intensity ?? this.intensity,
     );
   }
+      intensity: intensity ?? this.intensity,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'p0x': p0.dx,
+      'p0y': p0.dy,
+      'p1x': p1.dx,
+      'p1y': p1.dy,
+      'colors': colors.map((c) => c.value).toList(),
+      'stops': stops,
+      'intensity': intensity,
+    };
+  }
+
+  factory GradientStroke.fromJson(Map<String, dynamic> json) {
+    return GradientStroke(
+      p0: Offset(
+          (json['p0x'] as num).toDouble(), (json['p0y'] as num).toDouble()),
+      p1: Offset(
+          (json['p1x'] as num).toDouble(), (json['p1y'] as num).toDouble()),
+      colors: (json['colors'] as List<dynamic>)
+          .map((e) => Color(e as int))
+          .toList(),
+      stops:
+          (json['stops'] as List<dynamic>).map((e) => (e as num).toDouble()).toList(),
+      intensity: (json['intensity'] as num).toDouble(),
+    );
+  }
 }

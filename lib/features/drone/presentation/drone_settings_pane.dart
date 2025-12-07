@@ -89,6 +89,30 @@ class DroneSettingsPane extends StatelessWidget {
             ],
           ),
 
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Instrument:'),
+              DropdownButton<int>(
+                value: config.droneInstrument,
+                items: const [
+                  DropdownMenuItem(value: 89, child: Text('Warm Pad')),
+                  DropdownMenuItem(value: 49, child: Text('Strings')),
+                  DropdownMenuItem(value: 52, child: Text('Choir Aahs')),
+                  DropdownMenuItem(value: 19, child: Text('Church Organ')),
+                  DropdownMenuItem(value: 88, child: Text('New Age')),
+                  DropdownMenuItem(value: 95, child: Text('Sweep Pad')),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    onConfigChanged(config.copyWith(droneInstrument: val));
+                  }
+                },
+              ),
+            ],
+          ),
+
           const Divider(),
           const SizedBox(height: 10),
           const Text('Scan Line Color Detection:'),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' as ui; // For FragmentProgram
@@ -13,7 +14,6 @@ import '../../drawing/presentation/drawing_tools_pane.dart';
 import '../../midi/presentation/midi_settings_pane.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:synesthesia_art_draw/features/instrument/presentation/preset_library_pane.dart';
 import 'package:synesthesia_art_draw/features/instrument/domain/instrument_preset.dart';
 import '../../instrument/presentation/instrument_settings_pane.dart';
 import '../../sequencer/presentation/sequencer_settings_pane.dart';
@@ -24,6 +24,10 @@ import '../../drawing/domain/drawing_mode.dart';
 import '../../drawing/domain/drawn_line.dart';
 import '../../drawing/domain/gradient_stroke.dart';
 import '../../midi/domain/music_configuration.dart';
+import '../../library/presentation/library_pane.dart';
+import '../../canvas/domain/canvas_model.dart';
+import '../../canvas/data/canvas_repository.dart';
+import 'package:uuid/uuid.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -74,13 +78,19 @@ class _HomePageState extends State<HomePage>
   // Drone State
   Color _currentDroneColor = Colors.black;
   List<int> _activeDroneNotes = [];
-  bool _isReverbOn = true; // Default ON
-  double _reverbDelay = 500.0; // Default 500ms
-  double _reverbDecay = 0.6; // Default 60% decay
+  bool _isDelayOn = true; // Renamed from Reverb
+  double _delayTime = 500.0; // Renamed from reverbDelay
+  double _delayFeedback = 0.6; // Renamed from reverbDecay
+  double _reverbLevel = 0.3; // True Reverb (CC91)
   String _selectedSoundFont = 'White Grand Piano II.sf2'; // Default
   int _selectedInstrumentIndex = 0;
   int _sfId = 0;
   List<InstrumentPreset> _presets = [];
+
+  // Canvas Library State
+  List<CanvasModel> _savedCanvases = [];
+  final _canvasRepo = CanvasRepository();
+  final _uuid = const Uuid();
 
   // Sustain State
   bool _isSustainOn = true;
@@ -113,7 +123,9 @@ class _HomePageState extends State<HomePage>
     super.initState();
     _initMidi(); // This handles loading the initial SoundFont
     _loadShader();
+    _loadShader();
     _loadPresets();
+    _loadCanvases();
     _playLineController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4), // Initial default
@@ -153,7 +165,7 @@ class _HomePageState extends State<HomePage>
     try {
       await _midi.selectInstrument(
         sfId: _sfId,
-        program: 49, // Strings
+        program: _musicConfig.droneInstrument,
         channel: 1,
       );
     } catch (e) {
@@ -222,6 +234,10 @@ class _HomePageState extends State<HomePage>
       } else {
         _clockTimer?.cancel();
         _playLineController.stop();
+        _playerDown.stop();
+        _playerUp.stop();
+        // Pause: Silence Drone notes
+        _updateDroneNotes([]);
       }
     });
   }
@@ -253,9 +269,9 @@ class _HomePageState extends State<HomePage>
     });
   }
 
-  void _toggleReverb() {
+  void _toggleDelay() {
     setState(() {
-      _isReverbOn = !_isReverbOn;
+      _isDelayOn = !_isDelayOn;
     });
   }
 
@@ -325,15 +341,12 @@ class _HomePageState extends State<HomePage>
       player.play(source);
     }
 
-    // Check for Drone Updates (Bar Boundary)
-    if (_musicConfig.droneEnabled && _currentTick == 0) {
-      // We are at the start of a Bar. Check if we should update based on interval.
-      // Total Bars Elapsed calculation would be better, but we only have 0-31 ticks.
-      // Actually we have `_currentTick` which loops 0 -> totalBeats-1.
-      // Since `_currentTick` wraps, we trigger every loop start (Bar 1).
-      // But we want "Every N Bars".
-      // We need a global "Bar Counter" or similar.
-      // For now, let's trigger every Loop start for now, or track absolute bars.
+    // Check for Drone Updates
+    // We want to update every N bars.
+    // 1 Bar = 4 beats (standard assumption for this grid).
+    final beatsPerInterval = _musicConfig.droneUpdateIntervalBars * 4;
+
+    if (_musicConfig.droneEnabled && (_currentTick % beatsPerInterval == 0)) {
       _processDroneLogic();
     }
 
@@ -497,56 +510,104 @@ class _HomePageState extends State<HomePage>
       // Let's iterate in reverse (topmost first) or blend all.
       // Since it's a "field", blending all might be safer.
 
-      double totalWeight = 0.0;
-      double bgR = 0, bgG = 0, bgB = 0;
+      double wSum = 0.0;
+      double accR = 0.0;
+      double accG = 0.0;
+      double accB = 0.0;
+
+      // Helper: sRGB to Linear (Approx Gamma 2.2)
+      double toLinear(double c) => pow(c / 255.0, 2.2).toDouble();
+      // Helper: Linear to sRGB
+      int toSrgb(double c) => (pow(c, 1.0 / 2.2) * 255.0).round().clamp(0, 255);
 
       for (final stroke in _gradientStrokes) {
-        // GradientStroke has p0 (start), p1 (end), colors, stops.
+        final p0 = stroke.p0;
+        final p1 = stroke.p1;
+        final radius = stroke.intensity;
 
-        final distStart = (stroke.p0.dx - xPos).abs();
-        final distEnd = (stroke.p1.dx - xPos).abs();
+        // Find closest point on segment (p0 -> p1) to vertical line (x = xPos)
+        // Segment parameter t. Point P(t) = p0 + t*(p1-p0).
+        // We want to minimize distance to xPos.
+        // Actually, simpler:
+        // If xPos is between p0.dx and p1.dx, distance is 0 (it crosses).
+        // If xPos is outside, closest is endpoints.
 
-        // Simple Inverse Distance Weighting
-        final weight = 1.0 / (distStart + distEnd + 1.0);
+        double dist = 0.0;
+        double t = 0.0; // Where on the segment we are sampling
 
-        // Interpolate between colors based on projected position t
-        final dx = stroke.p1.dx - stroke.p0.dx;
-        final dy = stroke.p1.dy - stroke.p0.dy;
-        final lenSq = dx * dx + dy * dy;
+        // Sorting X to find range
+        final minX = min(p0.dx, p1.dx);
+        final maxX = max(p0.dx, p1.dx);
 
-        final yPos = MediaQuery.of(context).size.height / 2;
+        if (xPos >= minX && xPos <= maxX) {
+          // Intersection! Dist is 0 (as far as X is concerned).
+          // But wait, the Shader is 2D Radial.
+          // If the stroke is horizontal at y=0, and we are looking at the vertical line x=50.
+          // And we want the "Visual Color of the Line".
+          // The line passes through the stroke. At intersection, D=0. Weight=1.
+          // So we should capture that Peak Identity.
+          dist = 0.0;
 
-        double t = 0.5;
-        if (lenSq > 0) {
-          t = ((xPos - stroke.p0.dx) * dx + (yPos - stroke.p0.dy) * dy) / lenSq;
+          // Calculate t at intersection X
+          final vdx = p1.dx - p0.dx;
+          if (vdx.abs() > 0.001) {
+            t = (xPos - p0.dx) / vdx;
+          } else {
+            t = 0.5; // Vertical line stroke?
+          }
+        } else {
+          // Outside range. Closest point is endpoint.
+          final d0 = (p0.dx - xPos).abs();
+          final d1 = (p1.dx - xPos).abs();
+          if (d0 < d1) {
+            dist = d0;
+            t = 0.0;
+          } else {
+            dist = d1;
+            t = 1.0;
+          }
+          // Note: Does vertical Y distance matter here here?
+          // If stroke is far away in Y, but "closest in X"?
+          // If we conceptually "Scan" the vertical line, we find the stroke eventually if X matches.
+          // If X mismatches, we are looking at the distance to the "Column".
+          // Shader uses radial falloff from segment.
+          // If we are at X, and stroke is at X but Y=1000 away?
+          // "Intersection" implies distance 0?
+          // If the user's intent is "What color is this X column?", then yes, intersection counts as 100%.
+          // But if the stroke has finite length?
+          // GradientStroke has p0, p1. The segment defines it.
+          // So yes, if xPos intersects the segment's X-range, it visually crosses the stroke.
         }
+
         t = t.clamp(0.0, 1.0);
 
-        // Interpolate color from stops
-        // If we have > 2 colors, we need to find which stops we are between.
-        // For now, simplify: assume 2 colors (start/end) or first/last.
-        final c1 = stroke.colors.first;
-        final c2 = stroke.colors.last;
+        if (dist < radius) {
+          final weight = 1.0 - (dist / radius);
 
-        // Or better, find stops.
-        // Let's stick to simple start/end for the user's "Rainbow" requirement.
+          // Interpolate Color
+          final c1 = stroke.colors.first;
+          final c2 = stroke.colors.last;
 
-        final mixedR = c1.red + (c2.red - c1.red) * t;
-        final mixedG = c1.green + (c2.green - c1.green) * t;
-        final mixedB = c1.blue + (c2.blue - c1.blue) * t;
+          // Linear Interpolation of raw sRGB values (standard simple lerp)
+          final mixedR = c1.red + (c2.red - c1.red) * t;
+          final mixedG = c1.green + (c2.green - c1.green) * t;
+          final mixedB = c1.blue + (c2.blue - c1.blue) * t;
 
-        bgR += mixedR * weight;
-        bgG += mixedG * weight;
-        bgB += mixedB * weight;
-        totalWeight += weight;
+          // Accumulate in Linear Space
+          accR += toLinear(mixedR) * weight;
+          accG += toLinear(mixedG) * weight;
+          accB += toLinear(mixedB) * weight;
+          wSum += weight;
+        }
       }
 
-      if (totalWeight > 0) {
+      if (wSum > 0.0) {
+        // Average and convert back to sRGB
         return Color.fromARGB(
           255,
-          (bgR / totalWeight).round(),
-          (bgG / totalWeight).round(),
-          (bgB / totalWeight).round(),
+          toSrgb(accR / wSum),
+          toSrgb(accG / wSum),
+          toSrgb(accB / wSum),
         );
       }
     }
@@ -574,21 +635,21 @@ class _HomePageState extends State<HomePage>
       _midi.stopNote(key: note, channel: 0, sfId: sfId);
     });
 
-    if (_isReverbOn) {
-      _triggerReverb(note, velocity, durationMs, sfId);
+    if (_isDelayOn) {
+      _triggerDelay(note, velocity, durationMs, sfId);
     }
   }
 
-  void _triggerReverb(int note, int velocity, int durationMs, int sfId) {
-    // Dynamic Echo Logic
-    int delayMs = _reverbDelay.toInt();
+  void _triggerDelay(int note, int velocity, int durationMs, int sfId) {
+    // Dynamic Echo Logic (Tape Delay Simulation)
+    int delayMs = _delayTime.toInt();
 
     // Echo 1
     Future.delayed(Duration(milliseconds: delayMs), () {
       if (!mounted) return;
       _midi.playNote(
         key: note,
-        velocity: (velocity * _reverbDecay).toInt(),
+        velocity: (velocity * _delayFeedback).toInt(),
         channel: 0,
         sfId: sfId,
       );
@@ -602,7 +663,7 @@ class _HomePageState extends State<HomePage>
       if (!mounted) return;
       _midi.playNote(
         key: note,
-        velocity: (velocity * _reverbDecay * _reverbDecay).toInt(),
+        velocity: (velocity * _delayFeedback * _delayFeedback).toInt(),
         channel: 0,
         sfId: sfId,
       );
@@ -610,6 +671,16 @@ class _HomePageState extends State<HomePage>
         _midi.stopNote(key: note, channel: 0, sfId: sfId);
       });
     });
+  }
+
+  // Send MIDI CC 91 (Effects 1 Depth - usually Reverb)
+  void _setReverb(double level) {
+    // Level 0.0 to 1.0 -> 0 to 127
+    final val = (level.clamp(0.0, 1.0) * 127).toInt();
+    _midi.sendControlChange(channel: 0, controller: 91, value: val);
+    // Also send to Drone channel just in case? Or separate knob?
+    // Let's assume global reverb for now or just instrument.
+    // User requested separate reverb, likely for the instrument.
   }
 
   // When Tempo changes, we need to restart timer if playing
@@ -672,12 +743,17 @@ class _HomePageState extends State<HomePage>
       case 2:
         return InstrumentSettingsPane(
           availableSoundFonts: _soundFonts,
-          isReverbOn: _isReverbOn,
-          onReverbChanged: (val) => setState(() => _isReverbOn = val),
-          reverbDelay: _reverbDelay,
-          onReverbDelayChanged: (val) => setState(() => _reverbDelay = val),
-          reverbDecay: _reverbDecay,
-          onReverbDecayChanged: (val) => setState(() => _reverbDecay = val),
+          isDelayOn: _isDelayOn,
+          onDelayChanged: (val) => _toggleDelay(),
+          delayTime: _delayTime,
+          onDelayTimeChanged: (val) => setState(() => _delayTime = val),
+          delayFeedback: _delayFeedback,
+          onDelayFeedbackChanged: (val) => setState(() => _delayFeedback = val),
+          reverbLevel: _reverbLevel,
+          onReverbLevelChanged: (val) => setState(() {
+            _reverbLevel = val;
+            _setReverb(val);
+          }),
           isSustainOn: _isSustainOn,
           onSustainChanged: (val) => setState(() => _isSustainOn = val),
           directionChangeThreshold: _musicConfig.directionChangeThreshold,
@@ -698,11 +774,15 @@ class _HomePageState extends State<HomePage>
           },
         );
       case 3:
-        return PresetLibraryPane(
-          presets: _presets,
-          onSaveCurrent: _saveCurrentPreset,
-          onLoad: _loadPreset,
-          onDelete: _deletePreset,
+        return LibraryPane(
+          instrumentPresets: _presets,
+          onSaveInstrument: _savePreset,
+          onLoadInstrument: _loadPreset,
+          onDeleteInstrument: _deletePreset,
+          canvasPresets: _savedCanvases,
+          onSaveCanvas: _saveCanvas,
+          onLoadCanvas: _loadCanvas,
+          onDeleteCanvas: _deleteCanvas,
         );
       case 4:
         return SequencerSettingsPane(
@@ -742,7 +822,7 @@ class _HomePageState extends State<HomePage>
       } else if (event.logicalKey == LogicalKeyboardKey.keyB) {
         setState(() => _currentMode = DrawingMode.gradient);
       } else if (event.logicalKey == LogicalKeyboardKey.keyR) {
-        _toggleReverb();
+        _toggleDelay();
       } else if (event.logicalKey == LogicalKeyboardKey.keyE) {
         setState(() => _currentMode = DrawingMode.erase);
       } else if (event.logicalKey == LogicalKeyboardKey.keyG) {
@@ -828,22 +908,66 @@ class _HomePageState extends State<HomePage>
 
   Future<void> _loadPresets() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? presetsJson = prefs.getString('instrument_presets');
+    final String? presetsJson = prefs.getString('saved_presets');
     if (presetsJson != null) {
       final List<dynamic> decoded = jsonDecode(presetsJson);
       setState(() {
-        _presets = decoded.map((e) => InstrumentPreset.fromJson(e)).toList();
+        _presets = decoded
+            .map((json) => InstrumentPreset.fromJson(json))
+            .toList();
       });
     }
   }
 
-  Future<void> _savePresets() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String encoded = jsonEncode(_presets.map((e) => e.toJson()).toList());
-    await prefs.setString('instrument_presets', encoded);
+  Future<void> _loadCanvases() async {
+    final canvases = await _canvasRepo.getAllCanvases();
+    setState(() {
+      _savedCanvases = canvases;
+    });
   }
 
-  void _saveCurrentPreset(String name) {
+  Future<void> _saveCanvas(String name) async {
+    final canvas = CanvasModel(
+      id: _uuid.v4(),
+      name: name,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      lines: _lines,
+      gradientStrokes: _gradientStrokes,
+      musicConfig: _musicConfig,
+    );
+
+    await _canvasRepo.saveCanvas(canvas);
+    await _loadCanvases();
+  }
+
+  void _loadCanvas(CanvasModel canvas) {
+    setState(() {
+      _lines = canvas.lines; // These are distinct objects from JSON
+      _gradientStrokes = canvas.gradientStrokes;
+      _updateConfig(canvas.musicConfig);
+      // Ensure we clear current line if any?
+      _currentLine = null;
+    });
+  }
+
+  Future<void> _deleteCanvas(CanvasModel canvas) async {
+    await _canvasRepo.deleteCanvas(canvas.id);
+    await _loadCanvases();
+  }
+
+  Future<void> _savePresetsToDisk() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String encoded = jsonEncode(_presets.map((e) => e.toJson()).toList());
+    await prefs.setString('saved_presets', encoded);
+  }
+
+  void _savePreset(String name) {
+    if (_presets.any((p) => p.name == name)) {
+      // Logic to overwrite?
+      _presets.removeWhere((p) => p.name == name);
+    }
+
     final newPreset = InstrumentPreset(
       name: name,
       brushSpread: _brushSpread,
@@ -855,9 +979,10 @@ class _HomePageState extends State<HomePage>
       minPixelsForTrigger: _minPixels,
       soundFont: _selectedSoundFont,
       programIndex: _selectedInstrumentIndex,
-      isReverbOn: _isReverbOn,
-      reverbDelay: _reverbDelay,
-      reverbDecay: _reverbDecay,
+      isDelayOn: _isDelayOn,
+      delayTime: _delayTime,
+      delayFeedback: _delayFeedback,
+      reverbLevel: _reverbLevel,
       isSustainOn: _isSustainOn,
       directionChangeThreshold: _musicConfig.directionChangeThreshold,
     );
@@ -865,7 +990,7 @@ class _HomePageState extends State<HomePage>
     setState(() {
       _presets.add(newPreset);
     });
-    _savePresets();
+    _savePresetsToDisk();
   }
 
   void _loadPreset(InstrumentPreset preset) {
@@ -877,19 +1002,8 @@ class _HomePageState extends State<HomePage>
       _selectedLineColor = Color(preset.colorValue);
       _triggerOnBoundary = preset.triggerOnBoundary;
       _minPixels = preset.minPixelsForTrigger;
-
-      // Instrument
-      if (_soundFonts.contains(preset.soundFont)) {
-        // Check if the soundfont is in our available list
-        if (_selectedSoundFont != preset.soundFont) {
-          _selectedSoundFont = preset.soundFont;
-          // Trigger load soundfont if needed, but for now just setting state
-          _loadSoundFont(preset.soundFont);
-        }
-      }
+      _selectedSoundFont = preset.soundFont;
       _selectedInstrumentIndex = preset.programIndex;
-      _midi.selectInstrument(sfId: _sfId, program: _selectedInstrumentIndex);
-
       _isReverbOn = preset.isReverbOn;
       _reverbDelay = preset.reverbDelay;
       _reverbDecay = preset.reverbDecay;
@@ -1105,14 +1219,14 @@ class _HomePageState extends State<HomePage>
                                 _currentMidiNote = midiNote;
                                 _currentMidiNoteSfId = targetSfId;
 
-                                if (_isReverbOn) {
+                                if (_isDelayOn) {
                                   // For sustain mode, we just trigger the echoes as "one shots"
                                   // They will fade out naturally via envelope or we stop them?
                                   // Standard piano doesn't sustain infinite, but let's give echoes a duration.
-                                  _triggerReverb(
+                                  _triggerDelay(
                                     midiNote,
-                                    127,
-                                    400,
+                                    127, // velocity
+                                    400, // duration
                                     targetSfId,
                                   );
                                 }
