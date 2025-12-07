@@ -651,9 +651,90 @@ class _HomePageState extends State<HomePage>
     return Colors.black; // Fallback
   }
 
+  // Track lines currently intersecting the scanline to avoid re-triggering
+  final Set<DrawnLine> _intersectingLines = {};
+
   void _checkLineTriggers() {
-    // TODO: Implement Play Line collision logic here
-    // For now, this is a placeholder to fix the build
+    if (!_isMidiInitialized) return;
+
+    final xPercent = _playLineController.value;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final xPos = xPercent * screenWidth;
+
+    final List<DrawnLine> currentIntersections = [];
+
+    for (final line in _lines) {
+      if (line.path.length < 2) continue;
+
+      bool intersects = false;
+      double intersectY = 0.0;
+
+      for (int i = 0; i < line.path.length - 1; i++) {
+        final p1 = line.path[i].point;
+        final p2 = line.path[i + 1].point;
+
+        // Check intersection with vertical line at xPos
+        if ((p1.dx <= xPos && p2.dx >= xPos) ||
+            (p1.dx >= xPos && p2.dx <= xPos)) {
+          // Calculate Y at intersection
+          if ((p1.dx - p2.dx).abs() < 0.001) {
+            intersectY = p1.dy; // Vertical segment
+          } else {
+            final t = (xPos - p1.dx) / (p2.dx - p1.dx);
+            intersectY = p1.dy + t * (p2.dy - p1.dy);
+          }
+
+          intersects = true;
+          break; // Found one intersection point for this line
+        }
+      }
+
+      if (intersects) {
+        currentIntersections.add(line);
+        if (!_intersectingLines.contains(line)) {
+          // New intersection - Trigger!
+          _triggerLineSound(line, intersectY, screenHeight);
+          _intersectingLines.add(line);
+        }
+      }
+    }
+
+    // Remove lines that are no longer intersecting
+    _intersectingLines.removeWhere(
+      (line) => !currentIntersections.contains(line),
+    );
+  }
+
+  void _triggerLineSound(DrawnLine line, double yPos, double screenHeight) {
+    // Map Y to Pitch
+    // 1.0 (Bottom) -> Low Pitch, 0.0 (Top) -> High Pitch?
+    // Usually Canvas Y=0 is Top.
+    // Let's invert: Top=High, Bottom=Low.
+    // normalized Y 0..1
+    double yNorm = (yPos / screenHeight).clamp(0.0, 1.0);
+
+    // Invert so high Y (bottom) is low pitch, low Y (top) is high pitch
+    yNorm = 1.0 - yNorm;
+
+    final allNotes = _musicConfig.getAllMidiNotes();
+    if (allNotes.isEmpty) return;
+
+    int noteIndex = (yNorm * (allNotes.length - 1)).round();
+    int note = allNotes[noteIndex];
+
+    // Velocity based on something? Line width?
+    int velocity = 100;
+
+    // Duration?
+    int duration = 200; // ms
+
+    _playNoteWithDuration(
+      note,
+      velocity,
+      duration,
+      sfId: _sfId, // Use Drawing SF
+    );
   }
 
   // Helper to play note with duration (prevents infinite sustain)

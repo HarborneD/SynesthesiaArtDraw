@@ -128,6 +128,13 @@ class MusicConfiguration {
   }
 
   factory MusicConfiguration.fromJson(Map<String, dynamic> json) {
+    // Sanitize directionChangeThreshold
+    double threshold =
+        (json['directionChangeThreshold'] as num?)?.toDouble() ?? 90.0;
+    if (threshold < 10.0 || threshold > 180.0) {
+      threshold = 90.0;
+    }
+
     return MusicConfiguration(
       octaves: (json['octaves'] as num?)?.toDouble() ?? 3.0,
       tempo: (json['tempo'] as num?)?.toDouble() ?? 92.0,
@@ -136,8 +143,7 @@ class MusicConfiguration {
       selectedDegrees: (json['selectedDegrees'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
-      directionChangeThreshold:
-          (json['directionChangeThreshold'] as num?)?.toDouble() ?? 90.0,
+      directionChangeThreshold: threshold,
       gridBars: json['gridBars'] as int? ?? 8,
       showPlayLine: json['showPlayLine'] as bool? ?? true,
       droneEnabled: json['droneEnabled'] as bool? ?? true,
@@ -149,7 +155,7 @@ class MusicConfiguration {
       ),
       droneInstrument: json['droneInstrument'] as int? ?? 49,
       droneSoundFont:
-          json['droneSoundFont'] as String? ?? 'White Grand Piano II.sf2',
+          json['droneSoundFont'] as String? ?? 'casio sk-200 gm sf2.sf2',
     );
   }
 
