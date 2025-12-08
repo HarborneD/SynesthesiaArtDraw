@@ -92,6 +92,20 @@ class DroneSettingsPane extends StatelessWidget {
           ),
 
           const SizedBox(height: 10),
+          Divider(),
+          const Text('Drone Volume:'),
+          Slider(
+            value: config.droneVolume,
+            min: 0.0,
+            max: 1.0,
+            divisions: 20,
+            label: '${(config.droneVolume * 100).toInt()}%',
+            onChanged: (val) {
+              onConfigChanged(config.copyWith(droneVolume: val));
+            },
+          ),
+
+          const SizedBox(height: 10),
           const Text('Drone Sound Font:'),
           DropdownButton<String>(
             value: config.droneSoundFont,
@@ -111,17 +125,15 @@ class DroneSettingsPane extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Instrument:'),
+              const Text('Instrument (Program):'),
               DropdownButton<int>(
                 value: config.droneInstrument,
-                items: const [
-                  DropdownMenuItem(value: 89, child: Text('Warm Pad')),
-                  DropdownMenuItem(value: 49, child: Text('Strings')),
-                  DropdownMenuItem(value: 52, child: Text('Choir Aahs')),
-                  DropdownMenuItem(value: 19, child: Text('Church Organ')),
-                  DropdownMenuItem(value: 88, child: Text('New Age')),
-                  DropdownMenuItem(value: 95, child: Text('Sweep Pad')),
-                ],
+                items: List.generate(128, (index) {
+                  return DropdownMenuItem<int>(
+                    value: index,
+                    child: Text('Instrument $index'),
+                  );
+                }),
                 onChanged: (val) {
                   if (val != null) {
                     onConfigChanged(config.copyWith(droneInstrument: val));
@@ -130,6 +142,7 @@ class DroneSettingsPane extends StatelessWidget {
               ),
             ],
           ),
+          Divider(),
 
           const Divider(),
           const SizedBox(height: 10),

@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 class InstrumentSettingsPane extends StatefulWidget {
   final String selectedSoundFont;
   final ValueChanged<String> onSoundFontChanged;
-  final int selectedInstrumentIndex;
+  final int selectedInstrumentIndex; // This is now Slot Index
   final ValueChanged<int> onInstrumentChanged;
+
+  final int selectedProgram;
+  final ValueChanged<int> onProgramChanged;
+
   final List<String> availableSoundFonts;
   final bool isDelayOn;
   final ValueChanged<bool> onDelayChanged;
@@ -12,14 +16,14 @@ class InstrumentSettingsPane extends StatefulWidget {
   final ValueChanged<double> onDelayTimeChanged;
   final double delayFeedback;
   final ValueChanged<double> onDelayFeedbackChanged;
-
   final double reverbLevel;
   final ValueChanged<double> onReverbLevelChanged;
-
   final bool isSustainOn;
   final ValueChanged<bool> onSustainChanged;
   final double directionChangeThreshold;
   final ValueChanged<double> onDirectionChangeThresholdChanged;
+  final double lineVolume;
+  final ValueChanged<double> onLineVolumeChanged;
 
   const InstrumentSettingsPane({
     super.key,
@@ -27,6 +31,8 @@ class InstrumentSettingsPane extends StatefulWidget {
     required this.onSoundFontChanged,
     required this.selectedInstrumentIndex,
     required this.onInstrumentChanged,
+    required this.selectedProgram,
+    required this.onProgramChanged,
     required this.availableSoundFonts,
     required this.isDelayOn,
     required this.onDelayChanged,
@@ -40,6 +46,8 @@ class InstrumentSettingsPane extends StatefulWidget {
     required this.onSustainChanged,
     required this.directionChangeThreshold,
     required this.onDirectionChangeThresholdChanged,
+    required this.lineVolume,
+    required this.onLineVolumeChanged,
   });
 
   @override
@@ -51,15 +59,14 @@ class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.grey[200],
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Instrument Settings',
-            style: Theme.of(context).textTheme.titleLarge,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
           SwitchListTile(
@@ -72,7 +79,48 @@ class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
               });
             },
           ),
-          const SizedBox(height: 20),
+
+          const SizedBox(height: 10),
+          const Text('Volume (Global):'),
+          Slider(
+            value: widget.lineVolume,
+            min: 0.0,
+            max: 1.0,
+            divisions: 20,
+            label: '${(widget.lineVolume * 100).toInt()}%',
+            onChanged: widget.onLineVolumeChanged,
+          ),
+
+          const Divider(height: 32),
+          const Text(
+            'Instrument Palette',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+
+          // Slot Selector
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(8, (index) {
+                final isSelected = widget.selectedInstrumentIndex == index;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: FilterChip(
+                    label: Text('${index + 1}'),
+                    selected: isSelected,
+                    onSelected: (bool selected) {
+                      if (selected) {
+                        widget.onInstrumentChanged(index);
+                      }
+                    },
+                  ),
+                );
+              }),
+            ),
+          ),
+
+          const SizedBox(height: 16),
           const Text('Sound Font'),
           DropdownButton<String>(
             value: widget.selectedSoundFont,
@@ -91,17 +139,17 @@ class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
               return DropdownMenuItem<String>(value: value, child: Text(value));
             }).toList(),
           ),
+
           const SizedBox(height: 20),
           const Text('Instrument (Program)'),
-          // Dropdown 0-127
           DropdownButton<int>(
-            value: widget.selectedInstrumentIndex,
+            value: widget.selectedProgram,
             hint: const Text('Select Instrument'),
             isExpanded: true,
             onChanged: _useInternalAudio
                 ? (int? newValue) {
                     if (newValue != null) {
-                      widget.onInstrumentChanged(newValue);
+                      widget.onProgramChanged(newValue);
                     }
                   }
                 : null,
@@ -113,6 +161,15 @@ class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
             }),
           ),
           const SizedBox(height: 20),
+
+          // Effects Section (Delay/Reverb) - KEEPING AS IS
+          const Divider(),
+          const Text(
+            'Effects',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+
+          // ... Rest of effects logic remains valid ...
           const Divider(),
           // Delay Section
           SwitchListTile(

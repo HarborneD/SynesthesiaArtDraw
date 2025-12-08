@@ -31,6 +31,7 @@ class DrawnLine {
   final String? soundFont;
   final int? program;
   final int? sfId;
+  final int? instrumentSlotIndex;
 
   // Brush Style
   final double spread;
@@ -46,6 +47,7 @@ class DrawnLine {
     this.soundFont,
     this.program,
     this.sfId,
+    this.instrumentSlotIndex,
     this.spread = 1.0,
     this.opacity = 0.5,
     this.bristleCount = 8,
@@ -61,6 +63,7 @@ class DrawnLine {
       'soundFont': soundFont,
       'program': program,
       'sfId': sfId,
+      'instrumentSlotIndex': instrumentSlotIndex,
       'spread': spread,
       'opacity': opacity,
       'bristleCount': bristleCount,
@@ -79,6 +82,7 @@ class DrawnLine {
       soundFont: json['soundFont'] as String?,
       program: json['program'] as int?,
       sfId: json['sfId'] as int?,
+      instrumentSlotIndex: json['instrumentSlotIndex'] as int?,
       spread: (json['spread'] as num?)?.toDouble() ?? 1.0,
       opacity: (json['opacity'] as num?)?.toDouble() ?? 0.5,
       bristleCount: json['bristleCount'] as int? ?? 8,

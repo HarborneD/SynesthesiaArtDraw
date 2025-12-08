@@ -2,6 +2,36 @@ import 'package:tonic/tonic.dart';
 
 enum DroneMapping { tonal, modal, chromatic }
 
+class InstrumentSlot {
+  final String? name; // Optional, e.g. "Lead", "Bass"
+  final String soundFont;
+  final int program; // 0-127
+
+  InstrumentSlot({this.name, required this.soundFont, required this.program});
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'soundFont': soundFont,
+    'program': program,
+  };
+
+  factory InstrumentSlot.fromJson(Map<String, dynamic> json) {
+    return InstrumentSlot(
+      name: json['name'] as String?,
+      soundFont: json['soundFont'] as String,
+      program: json['program'] as int,
+    );
+  }
+
+  InstrumentSlot copyWith({String? name, String? soundFont, int? program}) {
+    return InstrumentSlot(
+      name: name ?? this.name,
+      soundFont: soundFont ?? this.soundFont,
+      program: program ?? this.program,
+    );
+  }
+}
+
 class MusicConfiguration {
   final double octaves;
   final double tempo;
@@ -16,13 +46,23 @@ class MusicConfiguration {
   final int gridBars;
   final bool showPlayLine;
 
+  // Instrument Palette (Slots)
+  final List<InstrumentSlot> instrumentSlots;
+  final int selectedInstrumentSlot; // 0-7
+
   // Drone
   final bool droneEnabled;
   final int droneUpdateIntervalBars;
   final int droneDensity;
   final DroneMapping droneMapping;
   final int droneInstrument; // MIDI Program Number
-  final String droneSoundFont; // NEW: SoundFont for Drone
+  final String droneSoundFont;
+  final double droneVolume; // 0.0 - 1.0
+
+  // Line Instrument
+  final double lineVolume; // 0.0 - 1.0
+
+  InstrumentSlot get currentSlot => instrumentSlots[selectedInstrumentSlot];
 
   int get totalBeats => gridBars * 4;
 
@@ -60,7 +100,7 @@ class MusicConfiguration {
     this.selectedKey = 'A',
     this.selectedScale = 'Minor',
     List<String>? selectedDegrees,
-    this.directionChangeThreshold = 90.0, // FIX: Default to 90 degrees
+    this.directionChangeThreshold = 90.0,
     this.gridBars = 8,
     this.showPlayLine = true,
     this.droneEnabled = true,
@@ -69,8 +109,24 @@ class MusicConfiguration {
     this.droneMapping = DroneMapping.tonal,
     this.droneInstrument = 49, // Strings Ensemble 2
     this.droneSoundFont = 'casio_sk_200_gm.sf2',
-  }) : selectedDegrees = selectedDegrees ?? _getDefaultDegrees();
-  // ...
+    this.droneVolume = 0.8,
+    this.lineVolume = 0.8,
+    List<InstrumentSlot>? instrumentSlots,
+    this.selectedInstrumentSlot = 0,
+  }) : selectedDegrees = selectedDegrees ?? _getDefaultDegrees(),
+       instrumentSlots = instrumentSlots ?? _getDefaultSlots();
+
+  static List<InstrumentSlot> _getDefaultSlots() {
+    return List.generate(8, (index) {
+      // Default to some variety if possible, or just standard piano for now
+      return InstrumentSlot(
+        name: 'Instrument ${index + 1}',
+        soundFont: 'Dystopian Terra.sf2', // Default SF
+        program: 0, // Grand Piano
+      );
+    });
+  }
+
   MusicConfiguration copyWith({
     double? octaves,
     double? tempo,
@@ -86,6 +142,10 @@ class MusicConfiguration {
     DroneMapping? droneMapping,
     int? droneInstrument,
     String? droneSoundFont,
+    double? droneVolume,
+    double? lineVolume,
+    List<InstrumentSlot>? instrumentSlots,
+    int? selectedInstrumentSlot,
   }) {
     return MusicConfiguration(
       octaves: octaves ?? this.octaves,
@@ -104,10 +164,14 @@ class MusicConfiguration {
       droneMapping: droneMapping ?? this.droneMapping,
       droneInstrument: droneInstrument ?? this.droneInstrument,
       droneSoundFont: droneSoundFont ?? this.droneSoundFont,
+      droneVolume: droneVolume ?? this.droneVolume,
+      lineVolume: lineVolume ?? this.lineVolume,
+      instrumentSlots: instrumentSlots ?? this.instrumentSlots,
+      selectedInstrumentSlot:
+          selectedInstrumentSlot ?? this.selectedInstrumentSlot,
     );
   }
 
-  // ...
   Map<String, dynamic> toJson() {
     return {
       'octaves': octaves,
@@ -124,6 +188,10 @@ class MusicConfiguration {
       'droneMapping': droneMapping.name,
       'droneInstrument': droneInstrument,
       'droneSoundFont': droneSoundFont,
+      'droneVolume': droneVolume,
+      'lineVolume': lineVolume,
+      'instrumentSlots': instrumentSlots.map((e) => e.toJson()).toList(),
+      'selectedInstrumentSlot': selectedInstrumentSlot,
     };
   }
 
@@ -156,6 +224,12 @@ class MusicConfiguration {
       droneInstrument: json['droneInstrument'] as int? ?? 49,
       droneSoundFont:
           json['droneSoundFont'] as String? ?? 'casio_sk_200_gm.sf2',
+      droneVolume: (json['droneVolume'] as num?)?.toDouble() ?? 0.8,
+      lineVolume: (json['lineVolume'] as num?)?.toDouble() ?? 0.8,
+      instrumentSlots: (json['instrumentSlots'] as List<dynamic>?)
+          ?.map((e) => InstrumentSlot.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      selectedInstrumentSlot: json['selectedInstrumentSlot'] as int? ?? 0,
     );
   }
 

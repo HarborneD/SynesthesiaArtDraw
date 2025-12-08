@@ -11,13 +11,13 @@ import '../../transport/presentation/transport_bar.dart';
 import '../../canvas/presentation/canvas_widget.dart';
 import '../../canvas/presentation/background_gradient_painter.dart';
 import '../../drawing/presentation/drawing_tools_pane.dart';
-import '../../midi/presentation/midi_settings_pane.dart';
+import '../../drone/presentation/drone_settings_pane.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:synesthesia_art_draw/features/instrument/domain/instrument_preset.dart';
 import '../../instrument/presentation/instrument_settings_pane.dart';
 import '../../sequencer/presentation/sequencer_settings_pane.dart';
-import '../../drone/presentation/drone_settings_pane.dart';
+
 import '../../settings/presentation/app_settings_pane.dart';
 import '../../toolbar/presentation/toolbar_widget.dart';
 import '../../drawing/domain/drawing_mode.dart';
@@ -81,9 +81,8 @@ class _HomePageState extends State<HomePage>
   bool _isDelayOn = true; // Renamed from Reverb
   double _delayTime = 500.0; // Renamed from reverbDelay
   double _delayFeedback = 0.6; // Renamed from reverbDecay
+
   double _reverbLevel = 0.3; // True Reverb (CC91)
-  String _selectedSoundFont = 'White Grand Piano II.sf2'; // Default
-  int _selectedInstrumentIndex = 0;
   int _sfId = 0;
   int _droneSfId = 0;
   List<InstrumentPreset> _presets = [];
@@ -161,7 +160,7 @@ class _HomePageState extends State<HomePage>
   */
 
     // Load Drawing SoundFont
-    await _loadSoundFont(_selectedSoundFont);
+    await _loadSoundFont(_musicConfig.currentSlot.soundFont);
 
     // Load Drone SoundFont
     await _loadDroneSoundFont(_musicConfig.droneSoundFont);
@@ -178,12 +177,6 @@ class _HomePageState extends State<HomePage>
       debugPrint("Failed to init Drone instrument: $e");
     }
     */
-    // Defer instrument selection to _updateDroneConfig or just do it here:
-    try {
-      await _updateDroneInstrument();
-    } catch (e) {
-      debugPrint("Warning: Failed to init drone instrument: $e");
-    }
 
     setState(() {
       _isMidiInitialized = true;
@@ -233,7 +226,7 @@ class _HomePageState extends State<HomePage>
       // NOTE: This now only affects the 'active' drawing instrument
       _midi.selectInstrument(
         sfId: _sfId,
-        program: _selectedInstrumentIndex,
+        program: _musicConfig.currentSlot.program,
         channel: 0,
       );
     } catch (e) {
@@ -242,28 +235,41 @@ class _HomePageState extends State<HomePage>
   }
 
   void _cycleSoundFont(int direction) {
-    int currentIndex = _soundFonts.indexOf(_selectedSoundFont);
+    int currentIndex = _soundFonts.indexOf(_musicConfig.currentSlot.soundFont);
     if (currentIndex == -1) currentIndex = 0;
 
     int newIndex = (currentIndex + direction) % _soundFonts.length;
     if (newIndex < 0) newIndex = _soundFonts.length - 1;
 
     final newFont = _soundFonts[newIndex];
-    setState(() => _selectedSoundFont = newFont);
+    // Update Config
+    final updatedSlots = List<InstrumentSlot>.from(
+      _musicConfig.instrumentSlots,
+    );
+    updatedSlots[_musicConfig.selectedInstrumentSlot] = _musicConfig.currentSlot
+        .copyWith(soundFont: newFont);
+
+    final newConfig = _musicConfig.copyWith(instrumentSlots: updatedSlots);
+    _updateConfig(newConfig);
+
     _loadSoundFont(newFont);
   }
 
   void _cycleInstrument(int direction) {
-    setState(() {
-      int newProgram = (_selectedInstrumentIndex + direction) % 128;
-      if (newProgram < 0) newProgram = 127;
-      _selectedInstrumentIndex = newProgram;
-      _midi.selectInstrument(
-        sfId: _sfId,
-        program: _selectedInstrumentIndex,
-        channel: 0,
-      );
-    });
+    int newProgram = (_musicConfig.currentSlot.program + direction) % 128;
+    if (newProgram < 0) newProgram = 127;
+
+    // Update Config
+    final updatedSlots = List<InstrumentSlot>.from(
+      _musicConfig.instrumentSlots,
+    );
+    updatedSlots[_musicConfig.selectedInstrumentSlot] = _musicConfig.currentSlot
+        .copyWith(program: newProgram);
+
+    final newConfig = _musicConfig.copyWith(instrumentSlots: updatedSlots);
+    _updateConfig(newConfig);
+
+    _midi.selectInstrument(sfId: _sfId, program: newProgram, channel: 0);
   }
 
   void _togglePlay() {
@@ -488,9 +494,10 @@ class _HomePageState extends State<HomePage>
     // Start new notes that were NOT in old set
     for (final note in newNotes) {
       if (!_activeDroneNotes.contains(note)) {
+        int velocity = (80 * _musicConfig.droneVolume).round().clamp(0, 127);
         _midi.playNote(
           key: note,
-          velocity: 80,
+          velocity: velocity,
           channel: 1, // Drone Channel
           sfId: _droneSfId, // Use Drone SF
         );
@@ -498,6 +505,15 @@ class _HomePageState extends State<HomePage>
     }
     _activeDroneNotes = newNotes;
   }
+
+  // When volume changes, we might need to re-trigger drone notes?
+  // Or just wait for next update?
+  // Let's force update if volume changes in _updateConfig?
+  // Actually, Velocity is set on Note On. To change volume of sustained notes,
+  // we would need to stop and restart them.
+  // For now, let's accept that volume change works on *next* note trigger.
+  // Or: In `_updateConfig`, if volume changed, we can call `_updateDroneNotes(_activeDroneNotes)`?
+  // Implemented in future step if needed.
 
   Color _getScanLineColor(double xPercent) {
     // 1. Check Drawn Lines (Priority)
@@ -728,7 +744,12 @@ class _HomePageState extends State<HomePage>
     int note = allNotes[noteIndex];
 
     // Velocity based on something? Line width?
-    int velocity = 100;
+    // Scale by Volume
+    int baseVelocity = 100;
+    int velocity = (baseVelocity * _musicConfig.lineVolume).round().clamp(
+      0,
+      127,
+    );
 
     // Duration?
     int duration = 200; // ms
@@ -807,20 +828,25 @@ class _HomePageState extends State<HomePage>
   }
 
   // When Tempo changes, we need to restart timer if playing
-  void _updateConfig(MusicConfiguration config) {
-    final bool tempoChanged = config.tempo != _musicConfig.tempo;
-    final bool barsChanged = config.gridBars != _musicConfig.gridBars;
-    final bool droneSfChanged =
-        config.droneSoundFont != _musicConfig.droneSoundFont;
-    final bool droneInstChanged =
-        config.droneInstrument != _musicConfig.droneInstrument;
+  void _updateConfig(MusicConfiguration newConfig) {
+    if (newConfig == _musicConfig) return;
+
+    // Detect Changes
+    final droneSfChanged =
+        newConfig.droneSoundFont != _musicConfig.droneSoundFont;
+    final droneInstChanged =
+        newConfig.droneInstrument != _musicConfig.droneInstrument;
+    final tempoChanged = newConfig.tempo != _musicConfig.tempo;
+    final barsChanged = newConfig.gridBars != _musicConfig.gridBars;
+
+    // Detect Volume Changes
 
     setState(() {
-      _musicConfig = config;
+      _musicConfig = newConfig;
     });
 
     if (droneSfChanged) {
-      _loadDroneSoundFont(config.droneSoundFont).then((_) {
+      _loadDroneSoundFont(newConfig.droneSoundFont).then((_) {
         _updateDroneInstrument();
       });
     } else if (droneInstChanged) {
@@ -831,6 +857,14 @@ class _HomePageState extends State<HomePage>
       _startTimer();
     }
   }
+
+  /*
+  void _setChannelVolume(int channel, double volume) {
+    // MIDI CC 7 is Volume (0-127)
+    // flutter_midi_pro does not support CC yet.
+    // We will use velocity scaling instead.
+  }
+  */
 
   Widget? _getPane(int? index) {
     if (index == null) return null;
@@ -872,12 +906,7 @@ class _HomePageState extends State<HomePage>
           useNeonGlow: _useNeonGlow,
           onNeonGlowChanged: (val) => setState(() => _useNeonGlow = val),
         );
-      case 1:
-        return MidiSettingsPane(
-          config: _musicConfig,
-          onConfigChanged: _updateConfig,
-        );
-      case 2:
+      case 1: // Instrument Pane (shifted from case 2)
         return InstrumentSettingsPane(
           availableSoundFonts: _soundFonts,
           isDelayOn: _isDelayOn,
@@ -897,18 +926,61 @@ class _HomePageState extends State<HomePage>
           onDirectionChangeThresholdChanged: (val) => _updateConfig(
             _musicConfig.copyWith(directionChangeThreshold: val),
           ),
-          selectedSoundFont: _selectedSoundFont,
+          selectedSoundFont: _musicConfig.currentSlot.soundFont,
           onSoundFontChanged: (val) async {
-            if (val != _selectedSoundFont) {
-              setState(() => _selectedSoundFont = val);
+            // Update SoundFont for CURRENT SLOT
+            if (val != _musicConfig.currentSlot.soundFont) {
+              // Update Config Logic
+              final updatedSlots = List<InstrumentSlot>.from(
+                _musicConfig.instrumentSlots,
+              );
+              updatedSlots[_musicConfig.selectedInstrumentSlot] = _musicConfig
+                  .currentSlot
+                  .copyWith(soundFont: val);
+
+              final newConfig = _musicConfig.copyWith(
+                instrumentSlots: updatedSlots,
+              );
+              _updateConfig(newConfig);
+
+              // Trigger Load
               await _loadSoundFont(val);
             }
           },
-          selectedInstrumentIndex: _selectedInstrumentIndex,
+          selectedInstrumentIndex: _musicConfig.selectedInstrumentSlot,
           onInstrumentChanged: (val) {
-            setState(() => _selectedInstrumentIndex = val);
+            // Change Selected Slot
+            _updateConfig(_musicConfig.copyWith(selectedInstrumentSlot: val));
+            // Ensure we load/select the sound font for this new slot
+            final newSlot = _musicConfig.instrumentSlots[val];
+            _loadSoundFont(newSlot.soundFont).then((_) {
+              _midi.selectInstrument(
+                sfId: _loadedSoundFonts[newSlot.soundFont] ?? _sfId,
+                program: newSlot.program,
+              );
+            });
+          },
+          selectedProgram: _musicConfig.currentSlot.program,
+          onProgramChanged: (val) {
+            // Update Program for CURRENT SLOT
+            final updatedSlots = List<InstrumentSlot>.from(
+              _musicConfig.instrumentSlots,
+            );
+            updatedSlots[_musicConfig.selectedInstrumentSlot] = _musicConfig
+                .currentSlot
+                .copyWith(program: val);
+
+            final newConfig = _musicConfig.copyWith(
+              instrumentSlots: updatedSlots,
+            );
+            _updateConfig(newConfig);
+
+            // Send immediate MIDI change if active
             _midi.selectInstrument(sfId: _sfId, program: val);
           },
+          lineVolume: _musicConfig.lineVolume,
+          onLineVolumeChanged: (val) =>
+              _updateConfig(_musicConfig.copyWith(lineVolume: val)),
         );
       case 3:
         return LibraryPane(
@@ -1115,8 +1187,8 @@ class _HomePageState extends State<HomePage>
       colorValue: _selectedLineColor.value,
       triggerOnBoundary: _triggerOnBoundary,
       minPixelsForTrigger: _minPixels,
-      soundFont: _selectedSoundFont,
-      programIndex: _selectedInstrumentIndex,
+      soundFont: _musicConfig.currentSlot.soundFont,
+      programIndex: _musicConfig.currentSlot.program,
       isDelayOn: _isDelayOn,
       delayTime: _delayTime,
       delayFeedback: _delayFeedback,
@@ -1140,19 +1212,29 @@ class _HomePageState extends State<HomePage>
       _selectedLineColor = Color(preset.colorValue);
       _triggerOnBoundary = preset.triggerOnBoundary;
       _minPixels = preset.minPixelsForTrigger;
-      _selectedSoundFont = preset.soundFont;
-      _selectedInstrumentIndex = preset.programIndex;
+
       _isDelayOn = preset.isDelayOn;
       _delayTime = preset.delayTime;
       _delayFeedback = preset.delayFeedback;
       _reverbLevel = preset.reverbLevel;
       _isSustainOn = preset.isSustainOn;
 
+      // Update Config Logic for Slot
+      final updatedSlots = List<InstrumentSlot>.from(
+        _musicConfig.instrumentSlots,
+      );
+      updatedSlots[_musicConfig.selectedInstrumentSlot] = _musicConfig
+          .currentSlot
+          .copyWith(soundFont: preset.soundFont, program: preset.programIndex);
+
       _updateConfig(
         _musicConfig.copyWith(
+          instrumentSlots: updatedSlots,
           directionChangeThreshold: preset.directionChangeThreshold,
         ),
       );
+
+      _loadSoundFont(preset.soundFont);
     });
   }
 
@@ -1242,14 +1324,25 @@ class _HomePageState extends State<HomePage>
                             // Update the completed line with CURRENT instrument settings
                             // This effectively "stamps" the line with the sound it was drawn with
 
+                            // NEW: Stamp with Slot Index
                             final stampedLine = DrawnLine(
                               id: line.id,
                               path: line.path,
                               color: line.color,
                               width: line.width,
-                              soundFont: _selectedSoundFont,
-                              program: _selectedInstrumentIndex,
-                              sfId: _sfId,
+
+                              // Legacy/Fallback (optional, but good for robust standalone lines)
+                              soundFont: _musicConfig.currentSlot.soundFont,
+                              program: _musicConfig.currentSlot.program,
+                              sfId:
+                                  _loadedSoundFonts[_musicConfig
+                                      .currentSlot
+                                      .soundFont] ??
+                                  _sfId,
+
+                              // NEW PALETTE REFERENCE
+                              instrumentSlotIndex:
+                                  _musicConfig.selectedInstrumentSlot,
 
                               // Capture current brush style
                               spread: _brushSpread,
@@ -1300,27 +1393,38 @@ class _HomePageState extends State<HomePage>
                               final midiNote = notes[noteIndex];
 
                               // DETERMINE SOUND FOR THIS TRIGGER
-                              // If triggeredLine has stored sound data, use it.
-                              // If it's the 'currentLine' (being drawn), it might be null if not yet stamped.
-                              // If null, use global state.
-
-                              int targetSfId = triggeredLine.sfId ?? _sfId;
-                              // If stored sfId is not valid/loaded (e.g. restart), fallback to lookup
-                              if (triggeredLine.soundFont != null &&
-                                  _loadedSoundFonts.containsKey(
-                                    triggeredLine.soundFont,
-                                  )) {
-                                targetSfId =
-                                    _loadedSoundFonts[triggeredLine.soundFont]!;
-                              }
-
-                              // We might need to ensure the program is set for this playback event.
-                              // Since we might be sharing Channel 0, this is tricky.
-                              // WE WILL SET IT JUST IN CASE.
-                              // NOTE: This might glitch current playback if polyphony is high.
+                              int targetSfId = _sfId;
                               int targetProgram =
-                                  triggeredLine.program ??
-                                  _selectedInstrumentIndex;
+                                  _musicConfig.currentSlot.program;
+
+                              // Check Instrument Slot
+                              if (triggeredLine.instrumentSlotIndex != null) {
+                                final slot =
+                                    _musicConfig.instrumentSlots[triggeredLine
+                                        .instrumentSlotIndex!];
+                                targetProgram = slot.program;
+                                if (_loadedSoundFonts.containsKey(
+                                  slot.soundFont,
+                                )) {
+                                  targetSfId =
+                                      _loadedSoundFonts[slot.soundFont]!;
+                                }
+                              } else {
+                                // Fallback to Legacy Stored Data
+                                if (triggeredLine.sfId != null) {
+                                  targetSfId = triggeredLine.sfId!;
+                                } else if (triggeredLine.soundFont != null &&
+                                    _loadedSoundFonts.containsKey(
+                                      triggeredLine.soundFont,
+                                    )) {
+                                  targetSfId =
+                                      _loadedSoundFonts[triggeredLine
+                                          .soundFont]!;
+                                }
+                                if (triggeredLine.program != null) {
+                                  targetProgram = triggeredLine.program!;
+                                }
+                              }
 
                               // Optimization: Only switch instrument if needed
                               if (_lastChannel0SfId != targetSfId ||
