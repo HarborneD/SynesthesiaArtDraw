@@ -16,6 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:synesthesia_art_draw/features/instrument/domain/instrument_preset.dart';
 import '../../instrument/presentation/instrument_settings_pane.dart';
+import '../../midi/presentation/midi_settings_pane.dart';
 import '../../sequencer/presentation/sequencer_settings_pane.dart';
 
 import '../../settings/presentation/app_settings_pane.dart';
@@ -906,7 +907,12 @@ class _HomePageState extends State<HomePage>
           useNeonGlow: _useNeonGlow,
           onNeonGlowChanged: (val) => setState(() => _useNeonGlow = val),
         );
-      case 1: // Instrument Pane (shifted from case 2)
+      case 1: // Midi Settings Pane
+        return MidiSettingsPane(
+          config: _musicConfig,
+          onConfigChanged: _updateConfig,
+        );
+      case 2: // Instrument Pane
         return InstrumentSettingsPane(
           availableSoundFonts: _soundFonts,
           isDelayOn: _isDelayOn,
