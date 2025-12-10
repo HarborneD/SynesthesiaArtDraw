@@ -294,6 +294,7 @@ class _CanvasWidgetState extends State<CanvasWidget> {
       opacity: widget.currentLine!.opacity,
       bristleCount: widget.currentLine!.bristleCount,
       useNeonGlow: widget.currentLine!.useNeonGlow,
+      channelIndex: widget.currentLine!.channelIndex,
     );
 
     _processTriggerLogic(
