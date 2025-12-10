@@ -254,8 +254,8 @@ class MusicConfiguration {
       ),
       SoundFontChannel(
         name: 'Channel 5',
-        soundFont: 'Emu Rockgtr.sf2',
-        program: 2,
+        soundFont: 'casio_sk_200_gm.sf2',
+        program: 68,
       ),
       SoundFontChannel(
         name: 'Channel 6',
@@ -264,7 +264,8 @@ class MusicConfiguration {
       ),
       SoundFontChannel(
         name: 'Channel 7',
-        soundFont: 'White Grand Piano V.sf2',
+        soundFont:
+            'Authentic Shreddage X Soundfont MEGALO VERSION PRE AMPED STEREO EQ - That1Rand0mChannel.sf2',
         program: 0,
       ),
       SoundFontChannel(

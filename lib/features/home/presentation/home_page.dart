@@ -79,6 +79,7 @@ class _HomePageState extends State<HomePage>
   int _droneSfId = 0; // Drone Channel SF ID
 
   final List<String> _soundFonts = [
+    'Authentic Shreddage X Soundfont MEGALO VERSION PRE AMPED STEREO EQ - That1Rand0mChannel.sf2',
     'Dystopian Terra.sf2',
     'Emu Rockgtr.sf2',
     'Studio FG460s II Pro Guitar Pack.sf2',

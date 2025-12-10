@@ -1,7 +1,7 @@
 {
     "name": "Channel 3",
-    "soundFont": "Dystopian Terra.sf2",
-    "program": 0,
+    "soundFont": "VocalsPapel.sf2",
+    "program": 3,
     "brushSpread": 6.0,
     "brushOpacity": 0.7,
     "bristleCount": 45,

@@ -1,7 +1,7 @@
 {
     "name": "Channel 5",
-    "soundFont": "Studio FG460s II Pro Guitar Pack.sf2",
-    "program": 0,
+    "soundFont": "casio_sk_200_gm.sf2",
+    "program": 68,
     "brushSpread": 5.0,
     "brushOpacity": 0.8,
     "bristleCount": 60,

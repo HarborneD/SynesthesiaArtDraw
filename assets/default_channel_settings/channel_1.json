@@ -1,1 +1,19 @@
-{"name":"Channel 1","soundFont":"White Grand Piano II.sf2","program":0,"brushSpread":7.0,"brushOpacity":0.5,"bristleCount":40,"useNeonGlow":true,"colorValue":4278228616,"triggerOnBoundary":true,"minPixelsForTrigger":10.0,"directionChangeThreshold":90.0,"isDelayOn":true,"delayTime":500.0,"delayFeedback":0.6,"reverbLevel":0.3,"isSustainOn":true,"channelVolume":0.8}
+{
+    "name": "Channel 1",
+    "soundFont": "White Grand Piano II.sf2",
+    "program": 0,
+    "brushSpread": 7.0,
+    "brushOpacity": 0.5,
+    "bristleCount": 40,
+    "useNeonGlow": true,
+    "colorValue": 4278228616,
+    "triggerOnBoundary": true,
+    "minPixelsForTrigger": 10.0,
+    "directionChangeThreshold": 90.0,
+    "isDelayOn": true,
+    "delayTime": 500.0,
+    "delayFeedback": 0.6,
+    "reverbLevel": 0.3,
+    "isSustainOn": true,
+    "channelVolume": 0.8
+}

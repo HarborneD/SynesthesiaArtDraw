@@ -1,7 +1,7 @@
 {
     "name": "Channel 6",
-    "soundFont": "VocalsPapel.sf2",
-    "program": 0,
+    "soundFont": "casio_sk_200_gm.sf2",
+    "program": 93,
     "brushSpread": 10.0,
     "brushOpacity": 0.4,
     "bristleCount": 15,

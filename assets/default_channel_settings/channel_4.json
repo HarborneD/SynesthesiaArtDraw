@@ -1,7 +1,7 @@
 {
     "name": "Channel 4",
-    "soundFont": "Emu Rockgtr.sf2",
-    "program": 0,
+    "soundFont": "casio_sk_200_gm.sf2",
+    "program": 54,
     "brushSpread": 9.0,
     "brushOpacity": 0.5,
     "bristleCount": 25,

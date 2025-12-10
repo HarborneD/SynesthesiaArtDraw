@@ -1,7 +1,7 @@
 {
     "name": "Channel 2",
-    "soundFont": "Clean Stratocaster.sf2",
-    "program": 0,
+    "soundFont": "Dystopian Terra.sf2",
+    "program": 2,
     "brushSpread": 8.0,
     "brushOpacity": 0.6,
     "bristleCount": 30,
