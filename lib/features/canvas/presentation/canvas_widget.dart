@@ -77,7 +77,138 @@ class _CanvasWidgetState extends State<CanvasWidget> {
   int? _lastTriggerNoteIndex;
   // DateTime? _lastDirectionTriggerTime; // Removed in favor of Hysteresis
   bool _isTurning = false;
+
   bool _isRightClick = false;
+
+  // Raster Cache
+  ui.Image? _backingStore;
+  int _lastBakedLineCount = 0;
+  Size? _lastCanvasSize;
+
+  @override
+  void didUpdateWidget(CanvasWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Logic to update backing store if lines changed
+    // We defer the actual update to the build/layout phase where we have Size,
+    // OR we do it here if we stored the size.
+    // Actually, safer to check in build or a specific method called after build?
+    // But we need safe access to 'lines'.
+
+    // If we have a size, we can try to update.
+    if (_lastCanvasSize != null) {
+      _checkAndUpdateBackingStore(widget.lines, _lastCanvasSize!);
+    }
+  }
+
+  @override
+  void dispose() {
+    _backingStore?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkAndUpdateBackingStore(
+    List<DrawnLine> lines,
+    Size size,
+  ) async {
+    // 1. Check for Resize
+    if (_backingStore == null ||
+        _lastCanvasSize == null ||
+        size != _lastCanvasSize) {
+      _lastCanvasSize = size;
+      await _rebakeAll(lines, size);
+      return;
+    }
+
+    // 2. Check for Additions (Optimization)
+    if (lines.length > _lastBakedLineCount) {
+      // Bake ONLY the new lines
+      final newLines = lines.sublist(_lastBakedLineCount);
+      await _bakeNewLines(newLines, size);
+      _lastBakedLineCount = lines.length;
+      if (mounted) setState(() {}); // Trigger repaint with new image
+      return;
+    }
+
+    // 3. Check for Deletions/Modifications (Full Redraw)
+    if (lines.length < _lastBakedLineCount) {
+      // Undo/Erase happened
+      await _rebakeAll(lines, size);
+      return;
+    }
+
+    // 4. Check for mutations (same length but content changed)?
+    // We assume immutability for performance, except maybe last line modification?
+    // If strictly appending, the above is enough.
+    // If lines can be modified in place (unlikely in this arch), we'd need hash checks.
+    // For now, assume length check is sufficient for Append/Undo.
+  }
+
+  Future<void> _rebakeAll(List<DrawnLine> lines, Size size) async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(
+      recorder,
+      Rect.fromLTWH(0, 0, size.width, size.height),
+    );
+
+    // Draw all lines
+    final painter = _CompletedLinesPainter(lines: lines);
+    // We need to exposing the draw method or just use it?
+    // _CompletedLinesPainter encapsulates the draw logic.
+    // Let's refactor _CompletedLinesPainter to be a static helper or expose a regular method.
+    // OR just instantiate it and call generic paint?
+    // CustomPainter.paint takes a Canvas and Size.
+    painter.paint(canvas, size);
+
+    final picture = recorder.endRecording();
+    final newImage = await picture.toImage(
+      size.width.toInt(),
+      size.height.toInt(),
+    );
+
+    if (mounted) {
+      setState(() {
+        _backingStore?.dispose(); // Dispose old
+        _backingStore = newImage;
+        _lastBakedLineCount = lines.length;
+      });
+    } else {
+      newImage.dispose();
+    }
+  }
+
+  Future<void> _bakeNewLines(List<DrawnLine> newLines, Size size) async {
+    if (_backingStore == null)
+      return _rebakeAll(newLines, size); // Should not happen if logic matches
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(
+      recorder,
+      Rect.fromLTWH(0, 0, size.width, size.height),
+    );
+
+    // 1. Draw existing image
+    canvas.drawImage(_backingStore!, Offset.zero, Paint());
+
+    // 2. Draw new lines
+    final painter = _CompletedLinesPainter(lines: newLines);
+    painter.paint(canvas, size);
+
+    final picture = recorder.endRecording();
+    final newImage = await picture.toImage(
+      size.width.toInt(),
+      size.height.toInt(),
+    );
+
+    if (mounted) {
+      setState(() {
+        _backingStore?.dispose();
+        _backingStore = newImage;
+        // _lastBakedLineCount is updated by caller
+      });
+    } else {
+      newImage.dispose();
+    }
+  }
 
   void _handlePanStart(DragStartDetails details, BoxConstraints constraints) {
     if (_isRightClick) return;
@@ -385,6 +516,22 @@ class _CanvasWidgetState extends State<CanvasWidget> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        // Ensure backing store is initialized for this size
+        // We can't do async work here easily without flickering.
+        // But we can trigger it.
+        final size = Size(constraints.maxWidth, constraints.maxHeight);
+        if (_backingStore == null || size != _lastCanvasSize) {
+          // First frame or resize: Schedule bake
+          // Using addPostFrameCallback to avoid build-phase setState
+          if (_lastCanvasSize != size) {
+            _lastCanvasSize = size;
+            _lastBakedLineCount = 0; // Force full rebake
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _checkAndUpdateBackingStore(widget.lines, size);
+            });
+          }
+        }
+
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onPanStart: (details) {
@@ -409,13 +556,16 @@ class _CanvasWidgetState extends State<CanvasWidget> {
                   ),
                 ),
 
-                // 2. Completed Lines Layer (Cached)
-                // This is the heavy one. We cache it so we don't redraw 100s of bristles per frame.
-                RepaintBoundary(
-                  child: CustomPaint(
-                    painter: _CompletedLinesPainter(lines: widget.lines),
-                  ),
-                ),
+                // 2. Completed Lines Layer (Rasterized)
+                // Draw the backed image
+                if (_backingStore != null)
+                  CustomPaint(
+                    painter: _RasterImagePainter(image: _backingStore!),
+                  )
+                else
+                  // Fallback while baking? Or just transparent?
+                  // Transparent is fine, it will flash briefly.
+                  const SizedBox.shrink(),
 
                 // 3. Active Line Layer (Not Cached - Dynamic)
                 CustomPaint(
@@ -691,5 +841,20 @@ class _OverlayPainter extends CustomPainter {
         oldDelegate.gradientStrokes != gradientStrokes ||
         oldDelegate.showPlayLine != showPlayLine ||
         oldDelegate.playLineAnimation != playLineAnimation;
+  }
+}
+
+class _RasterImagePainter extends CustomPainter {
+  final ui.Image image;
+  _RasterImagePainter({required this.image});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawImage(image, Offset.zero, Paint());
+  }
+
+  @override
+  bool shouldRepaint(covariant _RasterImagePainter oldDelegate) {
+    return oldDelegate.image != image;
   }
 }
