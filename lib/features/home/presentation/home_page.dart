@@ -39,7 +39,7 @@ class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
   int? _selectedPaneIndex;
   MusicConfiguration _musicConfig = MusicConfiguration();
-  bool _showNoteLines = true;
+  bool _showNoteLines = false;
 
   // Drawing State
   double _segmentLength = 200.0;

@@ -216,7 +216,7 @@ class MusicConfiguration {
     List<String>? selectedDegrees,
     this.directionChangeThreshold = 90.0,
     this.gridBars = 8,
-    this.showPlayLine = true,
+    this.showPlayLine = false,
     this.droneEnabled = true,
     this.droneUpdateIntervalBars = 1,
     this.droneDensity = 3,
