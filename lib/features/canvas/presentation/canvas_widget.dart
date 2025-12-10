@@ -8,7 +8,6 @@ import 'dart:math';
 import '../../canvas/presentation/background_gradient_painter.dart';
 
 import '../../drawing/domain/drawing_mode.dart';
-import 'line_painter_utils.dart';
 
 class CanvasWidget extends StatefulWidget {
   final MusicConfiguration musicConfig;
@@ -460,10 +459,6 @@ class _CompletedLinesPainter extends CustomPainter {
   }
 
   void _drawLine(Canvas canvas, DrawnLine line) {
-    // Generate smooth path
-    final points = line.path.map((p) => p.point).toList();
-    final path = LinePainterUtils.generateSmoothPath(points);
-
     // 1. Draw Glow (Behind) - Optional
     if (line.useNeonGlow) {
       final glowPaint = Paint()
@@ -478,21 +473,19 @@ class _CompletedLinesPainter extends CustomPainter {
           8.0,
         ); // Blur effect
 
-      canvas.drawPath(path, glowPaint);
+      canvas.drawPath(line.smoothPath, glowPaint);
     }
 
     // 2. Draw Bristles (Paint Brush Effect)
-    // Use the line's ID hash as a seed for stable randomness
-    final random = Random(line.id.hashCode);
-    final bristleCount = line.bristleCount; // Use line's count
+    // Use cached offsets and opacities
     final baseWidth = line.width;
-    final spread = line.spread;
 
-    // Draw multiple passes with varying offsets and opacity
-    for (int i = 0; i < bristleCount; i++) {
-      final offsetX = (random.nextDouble() - 0.5) * baseWidth * spread;
-      final offsetY = (random.nextDouble() - 0.5) * baseWidth * spread;
-      final opacity = 0.3 + (random.nextDouble() * 0.5); // 0.3 to 0.8
+    // Safety check in case cache length mismatch (shouldn't happen with correct logic)
+    final count = min(line.bristleOffsets.length, line.bristleOpacities.length);
+
+    for (int i = 0; i < count; i++) {
+      final offset = line.bristleOffsets[i];
+      final opacity = line.bristleOpacities[i];
 
       // Scale opacity by line's opacity setting
       final finalOpacity = (opacity * line.opacity).clamp(0.0, 1.0);
@@ -504,8 +497,8 @@ class _CompletedLinesPainter extends CustomPainter {
         ..style = PaintingStyle.stroke;
 
       canvas.save();
-      canvas.translate(offsetX, offsetY);
-      canvas.drawPath(path, bristlePaint);
+      canvas.translate(offset.dx, offset.dy);
+      canvas.drawPath(line.smoothPath, bristlePaint);
       canvas.restore();
     }
 
@@ -518,7 +511,7 @@ class _CompletedLinesPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
 
-      canvas.drawPath(path, corePaint);
+      canvas.drawPath(line.smoothPath, corePaint);
     }
   }
 
@@ -549,8 +542,7 @@ class _ActiveLinePainter extends CustomPainter {
 
   void _drawLine(Canvas canvas, DrawnLine line) {
     // Duplicated logic for now to keep isolated. Could refactor to Mixin.
-    final points = line.path.map((p) => p.point).toList();
-    final path = LinePainterUtils.generateSmoothPath(points);
+    // Use cached values
 
     if (line.useNeonGlow) {
       final glowPaint = Paint()
@@ -559,18 +551,15 @@ class _ActiveLinePainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8.0);
-      canvas.drawPath(path, glowPaint);
+      canvas.drawPath(line.smoothPath, glowPaint);
     }
 
-    final random = Random(line.id.hashCode);
-    final bristleCount = line.bristleCount;
     final baseWidth = line.width;
-    final spread = line.spread;
+    final count = min(line.bristleOffsets.length, line.bristleOpacities.length);
 
-    for (int i = 0; i < bristleCount; i++) {
-      final offsetX = (random.nextDouble() - 0.5) * baseWidth * spread;
-      final offsetY = (random.nextDouble() - 0.5) * baseWidth * spread;
-      final opacity = 0.3 + (random.nextDouble() * 0.5);
+    for (int i = 0; i < count; i++) {
+      final offset = line.bristleOffsets[i];
+      final opacity = line.bristleOpacities[i];
       final finalOpacity = (opacity * line.opacity).clamp(0.0, 1.0);
 
       final bristlePaint = Paint()
@@ -580,8 +569,8 @@ class _ActiveLinePainter extends CustomPainter {
         ..style = PaintingStyle.stroke;
 
       canvas.save();
-      canvas.translate(offsetX, offsetY);
-      canvas.drawPath(path, bristlePaint);
+      canvas.translate(offset.dx, offset.dy);
+      canvas.drawPath(line.smoothPath, bristlePaint);
       canvas.restore();
     }
   }

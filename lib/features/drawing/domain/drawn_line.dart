@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
+import 'dart:math';
+import '../../canvas/presentation/line_painter_utils.dart';
 
 class DrawingPoint {
   final Offset point;
@@ -53,6 +56,57 @@ class DrawnLine {
     this.bristleCount = 8,
     this.useNeonGlow = true,
   });
+
+  // Caching Optimization
+  late final Path smoothPath = LinePainterUtils.generateSmoothPath(
+    path.map((e) => e.point).toList(),
+  );
+
+  late final List<Offset> bristleOffsets = _generateBristleOffsets();
+  late final List<double> bristleOpacities = _generateBristleOpacities();
+
+  List<Offset> _generateBristleOffsets() {
+    final random = Random(id.hashCode);
+    final List<Offset> offsets = [];
+    for (int i = 0; i < bristleCount; i++) {
+      final offsetX = (random.nextDouble() - 0.5) * width * spread;
+      final offsetY = (random.nextDouble() - 0.5) * width * spread;
+      offsets.add(Offset(offsetX, offsetY));
+    }
+    return offsets;
+  }
+
+  List<double> _generateBristleOpacities() {
+    final random = Random(id.hashCode);
+    // Burn some randoms to sync with offsets generation just in case order matters,
+    // though using separate loops or same loop logic in separate call is safer.
+    // Ideally we'd generate tuple, but separate lists is fine.
+    // TO ENSURE STABILITY: We need to use the exact same sequence or seed.
+    // Random(id.hashCode) resets the sequence.
+    // _generateOffsets pulls (nextDouble, nextDouble) * count.
+    // We must SKIP those to get to the opacity ones if we want them to match previous logic?
+    // Actually, previous logic was:
+    // loop {
+    //   offsetX = rand...;
+    //   offsetY = rand...;
+    //   opacity = rand...;
+    // }
+    // So to reproduce that EXACT sequence with two methods:
+    // Method 1 (Offsets): loop { rand; rand; skip(1); }
+    // Method 2 (Opacities): loop { skip(2); rand; }
+    // OR just generate them all in one go and store in a private class or just list of tuples?
+    // Let's keep it simple. The exact visual doesn't need to match pixel-perfectly with old version,
+    // just needs to be deterministic per ID.
+    // So distinct sequences are fine.
+    final List<double> opacities = [];
+    // We intentionally use a different sequence (fresh Random) or same?
+    // Different loop = different random calls.
+    // It's deterministic based on seed.
+    for (int i = 0; i < bristleCount; i++) {
+      opacities.add(0.3 + (random.nextDouble() * 0.5));
+    }
+    return opacities;
+  }
 
   Map<String, dynamic> toJson() {
     return {
