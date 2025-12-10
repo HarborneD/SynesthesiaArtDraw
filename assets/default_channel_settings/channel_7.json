@@ -1,0 +1,19 @@
+{
+    "name": "Channel 7",
+    "soundFont": "casio_sk_200_gm.sf2",
+    "program": 0,
+    "brushSpread": 7.5,
+    "brushOpacity": 0.6,
+    "bristleCount": 35,
+    "useNeonGlow": true,
+    "colorValue": 4293821166,
+    "triggerOnBoundary": false,
+    "minPixelsForTrigger": 10.0,
+    "directionChangeThreshold": 90.0,
+    "isDelayOn": true,
+    "delayTime": 250.0,
+    "delayFeedback": 0.3,
+    "reverbLevel": 0.3,
+    "isSustainOn": false,
+    "channelVolume": 0.8
+}

@@ -1,0 +1,19 @@
+{
+    "name": "Channel 4",
+    "soundFont": "Emu Rockgtr.sf2",
+    "program": 0,
+    "brushSpread": 9.0,
+    "brushOpacity": 0.5,
+    "bristleCount": 25,
+    "useNeonGlow": true,
+    "colorValue": 4278255360,
+    "triggerOnBoundary": false,
+    "minPixelsForTrigger": 10.0,
+    "directionChangeThreshold": 90.0,
+    "isDelayOn": false,
+    "delayTime": 0.0,
+    "delayFeedback": 0.0,
+    "reverbLevel": 0.2,
+    "isSustainOn": true,
+    "channelVolume": 0.9
+}

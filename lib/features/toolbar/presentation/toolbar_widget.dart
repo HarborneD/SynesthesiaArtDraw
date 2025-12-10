@@ -4,65 +4,120 @@ class ToolbarWidget extends StatelessWidget {
   final ValueChanged<int?> onPaneSelected;
   final int? selectedPaneIndex;
 
+  // New: Channel Selection
+  final int selectedChannelIndex;
+  final ValueChanged<int> onChannelSelected;
+
   const ToolbarWidget({
     super.key,
     required this.onPaneSelected,
     required this.selectedPaneIndex,
+    required this.selectedChannelIndex,
+    required this.onChannelSelected,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 60,
+      width: 70, // Slightly wider for channel numbers
       color: Colors.blueGrey[900],
       child: Column(
         children: [
           const SizedBox(height: 16),
+          // 1. Music Settings
           _buildToolbarButton(
             context,
-            icon: Icons.brush,
-            label: 'Draw',
+            icon: Icons.tune,
+            label: 'Music Settings',
             index: 0,
           ),
-          _buildToolbarButton(
-            context,
-            icon: Icons.piano,
-            label: 'Midi',
-            index: 1,
-          ),
-          _buildToolbarButton(
-            context,
-            icon: Icons.library_music,
-            label: 'Instr',
-            index: 2,
-          ),
-          _buildToolbarButton(
-            context,
-            icon: Icons.save,
-            label: 'Library',
-            index: 3,
-          ),
+          // 2. Sequencer
           _buildToolbarButton(
             context,
             icon: Icons.grid_4x4,
-            label: 'Seq',
-            index: 4,
+            label: 'Sequencer',
+            index: 1,
           ),
+          const SizedBox(height: 10),
+
+          // 3. Background (Gradient + Drone)
           _buildToolbarButton(
             context,
-            icon: Icons.graphic_eq, // Drone / EQ icon
-            label: 'Drone',
-            index: 5,
+            icon: Icons.landscape, // or layers
+            label: 'Background',
+            index: 2,
           ),
-          const Spacer(),
+          // 4. Foreground / Channel Data
+          _buildToolbarButton(
+            context,
+            icon: Icons.brush,
+            label: 'Channel Settings',
+            index: 3,
+          ),
+
+          const Divider(color: Colors.white24, height: 20),
+
+          // Channel Selector (1-8)
+          Expanded(
+            child: ListView.builder(
+              itemCount: 8,
+              padding: EdgeInsets.zero,
+              itemBuilder: (context, idx) {
+                return _buildChannelButton(idx);
+              },
+            ),
+          ),
+
+          const Divider(color: Colors.white24, height: 20),
+
+          // 5. Library (moved down)
+          _buildToolbarButton(
+            context,
+            icon: Icons.folder_open,
+            label: 'Library',
+            index: 4,
+          ),
+
+          // 6. Global Settings
           _buildToolbarButton(
             context,
             icon: Icons.settings,
-            label: 'Settings',
-            index: 6,
+            label: 'App Settings',
+            index: 5,
           ),
           const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+
+  Widget _buildChannelButton(int index) {
+    final isSelected = selectedChannelIndex == index;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: GestureDetector(
+        onTap: () => onChannelSelected(index),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.tealAccent : Colors.transparent,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isSelected ? Colors.transparent : Colors.grey,
+              width: 1,
+            ),
+          ),
+          child: Text(
+            (index + 1).toString(),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isSelected ? Colors.black : Colors.white70,
+            ),
+          ),
+        ),
       ),
     );
   }

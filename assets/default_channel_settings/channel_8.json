@@ -1,0 +1,19 @@
+{
+    "name": "Channel 8",
+    "soundFont": "mick_gordon_string_efx.sf2",
+    "program": 0,
+    "brushSpread": 12.0,
+    "brushOpacity": 0.5,
+    "bristleCount": 50,
+    "useNeonGlow": true,
+    "colorValue": 4294951115,
+    "triggerOnBoundary": true,
+    "minPixelsForTrigger": 10.0,
+    "directionChangeThreshold": 100.0,
+    "isDelayOn": true,
+    "delayTime": 600.0,
+    "delayFeedback": 0.7,
+    "reverbLevel": 0.5,
+    "isSustainOn": true,
+    "channelVolume": 0.7
+}

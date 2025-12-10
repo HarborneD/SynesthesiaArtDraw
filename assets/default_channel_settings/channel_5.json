@@ -1,0 +1,19 @@
+{
+    "name": "Channel 5",
+    "soundFont": "Studio FG460s II Pro Guitar Pack.sf2",
+    "program": 0,
+    "brushSpread": 5.0,
+    "brushOpacity": 0.8,
+    "bristleCount": 60,
+    "useNeonGlow": true,
+    "colorValue": 4278190335,
+    "triggerOnBoundary": true,
+    "minPixelsForTrigger": 10.0,
+    "directionChangeThreshold": 80.0,
+    "isDelayOn": true,
+    "delayTime": 400.0,
+    "delayFeedback": 0.5,
+    "reverbLevel": 0.4,
+    "isSustainOn": true,
+    "channelVolume": 0.8
+}

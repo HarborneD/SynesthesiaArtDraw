@@ -7,27 +7,140 @@ class SoundFontChannel {
   final String soundFont;
   final int program; // 0-127
 
-  SoundFontChannel({this.name, required this.soundFont, required this.program});
+  // Brush Settings
+  final double brushSpread;
+  final double brushOpacity;
+  final int bristleCount;
+  final bool useNeonGlow;
+  final int colorValue;
+
+  // Trigger Settings
+  final bool triggerOnBoundary;
+  final double minPixelsForTrigger;
+  final double directionChangeThreshold;
+
+  // Effects Settings
+  final bool isDelayOn;
+  final double delayTime;
+  final double delayFeedback;
+  final double reverbLevel;
+  final bool isSustainOn;
+
+  // Volume
+  final double channelVolume; // Replaces lineVolume conceptually per channel
+
+  SoundFontChannel({
+    this.name,
+    required this.soundFont,
+    required this.program,
+    this.brushSpread = 7.0,
+    this.brushOpacity = 0.5,
+    this.bristleCount = 40,
+    this.useNeonGlow = true,
+    this.colorValue = 0xFF009688, // Colors.teal
+    this.triggerOnBoundary = true,
+    this.minPixelsForTrigger = 10.0,
+    this.directionChangeThreshold = 90.0,
+    this.isDelayOn = true,
+    this.delayTime = 500.0,
+    this.delayFeedback = 0.6,
+    this.reverbLevel = 0.3,
+    this.isSustainOn = false,
+    this.channelVolume = 0.8,
+  });
 
   Map<String, dynamic> toJson() => {
     'name': name,
     'soundFont': soundFont,
     'program': program,
+    'brushSpread': brushSpread,
+    'brushOpacity': brushOpacity,
+    'bristleCount': bristleCount,
+    'useNeonGlow': useNeonGlow,
+    'colorValue': colorValue,
+    'triggerOnBoundary': triggerOnBoundary,
+    'minPixelsForTrigger': minPixelsForTrigger,
+    'directionChangeThreshold': directionChangeThreshold,
+    'isDelayOn': isDelayOn,
+    'delayTime': delayTime,
+    'delayFeedback': delayFeedback,
+    'reverbLevel': reverbLevel,
+    'isSustainOn': isSustainOn,
+    'channelVolume': channelVolume,
   };
 
   factory SoundFontChannel.fromJson(Map<String, dynamic> json) {
     return SoundFontChannel(
       name: json['name'] as String?,
-      soundFont: json['soundFont'] as String,
-      program: json['program'] as int,
+      soundFont: json['soundFont'] as String? ?? 'White Grand Piano II.sf2',
+      program: (json['program'] as int?) ?? (json['programIndex'] as int?) ?? 0,
+      brushSpread: (json['brushSpread'] as num?)?.toDouble() ?? 7.0,
+      brushOpacity: (json['brushOpacity'] as num?)?.toDouble() ?? 0.5,
+      bristleCount: (json['bristleCount'] as int?) ?? 40,
+      useNeonGlow: json['useNeonGlow'] as bool? ?? true,
+      colorValue: (json['colorValue'] as int?) ?? 0xFF009688,
+      triggerOnBoundary: json['triggerOnBoundary'] as bool? ?? true,
+      minPixelsForTrigger:
+          (json['minPixelsForTrigger'] as num?)?.toDouble() ?? 10.0,
+      directionChangeThreshold:
+          (json['directionChangeThreshold'] as num?)?.toDouble() ?? 90.0,
+      isDelayOn:
+          json['isDelayOn'] as bool? ?? json['isReverbOn'] as bool? ?? true,
+      delayTime:
+          (json['delayTime'] as num?)?.toDouble() ??
+          (json['reverbDelay'] as num?)?.toDouble() ??
+          500.0,
+      delayFeedback:
+          (json['delayFeedback'] as num?)?.toDouble() ??
+          (json['reverbDecay'] as num?)?.toDouble() ??
+          0.6,
+      reverbLevel: (json['reverbLevel'] as num?)?.toDouble() ?? 0.3,
+      isSustainOn: json['isSustainOn'] as bool? ?? false,
+      channelVolume:
+          (json['channelVolume'] as num?)?.toDouble() ??
+          (json['lineVolume'] as num?)?.toDouble() ??
+          0.8,
     );
   }
 
-  SoundFontChannel copyWith({String? name, String? soundFont, int? program}) {
+  SoundFontChannel copyWith({
+    String? name,
+    String? soundFont,
+    int? program,
+    double? brushSpread,
+    double? brushOpacity,
+    int? bristleCount,
+    bool? useNeonGlow,
+    int? colorValue,
+    bool? triggerOnBoundary,
+    double? minPixelsForTrigger,
+    double? directionChangeThreshold,
+    bool? isDelayOn,
+    double? delayTime,
+    double? delayFeedback,
+    double? reverbLevel,
+    bool? isSustainOn,
+    double? channelVolume,
+  }) {
     return SoundFontChannel(
       name: name ?? this.name,
       soundFont: soundFont ?? this.soundFont,
       program: program ?? this.program,
+      brushSpread: brushSpread ?? this.brushSpread,
+      brushOpacity: brushOpacity ?? this.brushOpacity,
+      bristleCount: bristleCount ?? this.bristleCount,
+      useNeonGlow: useNeonGlow ?? this.useNeonGlow,
+      colorValue: colorValue ?? this.colorValue,
+      triggerOnBoundary: triggerOnBoundary ?? this.triggerOnBoundary,
+      minPixelsForTrigger: minPixelsForTrigger ?? this.minPixelsForTrigger,
+      directionChangeThreshold:
+          directionChangeThreshold ?? this.directionChangeThreshold,
+      isDelayOn: isDelayOn ?? this.isDelayOn,
+      delayTime: delayTime ?? this.delayTime,
+      delayFeedback: delayFeedback ?? this.delayFeedback,
+      reverbLevel: reverbLevel ?? this.reverbLevel,
+      isSustainOn: isSustainOn ?? this.isSustainOn,
+      channelVolume: channelVolume ?? this.channelVolume,
     );
   }
 }
