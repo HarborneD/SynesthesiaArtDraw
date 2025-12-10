@@ -36,6 +36,9 @@ class DrawnLine {
   final int? sfId;
   final int? instrumentSlotIndex;
 
+  // NEW: Track the channel index that created this line
+  final int channelIndex;
+
   // Brush Style
   final double spread;
   final double opacity;
@@ -51,6 +54,7 @@ class DrawnLine {
     this.program,
     this.sfId,
     this.instrumentSlotIndex,
+    this.channelIndex = 0, // Default to 0 for backward compatibility
     this.spread = 1.0,
     this.opacity = 0.5,
     this.bristleCount = 8,
@@ -118,6 +122,7 @@ class DrawnLine {
       'program': program,
       'sfId': sfId,
       'instrumentSlotIndex': instrumentSlotIndex,
+      'channelIndex': channelIndex,
       'spread': spread,
       'opacity': opacity,
       'bristleCount': bristleCount,
@@ -137,6 +142,7 @@ class DrawnLine {
       program: json['program'] as int?,
       sfId: json['sfId'] as int?,
       instrumentSlotIndex: json['instrumentSlotIndex'] as int?,
+      channelIndex: json['channelIndex'] as int? ?? 0,
       spread: (json['spread'] as num?)?.toDouble() ?? 1.0,
       opacity: (json['opacity'] as num?)?.toDouble() ?? 0.5,
       bristleCount: json['bristleCount'] as int? ?? 8,

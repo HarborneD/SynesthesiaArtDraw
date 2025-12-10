@@ -68,6 +68,21 @@ class ToolbarWidget extends StatelessWidget {
             ),
           ),
 
+          // Gradient Tool Icon (Mapped to '0')
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: IconButton(
+              icon: const Icon(Icons.gradient, color: Colors.white54),
+              onPressed: () {
+                // Determine how to communicate "Gradient Tool" selection?
+                // Currently Toolbar only selects channel or pane.
+                // Maybe just visual for now or callback if needed.
+                // For now just icon as requested.
+              },
+              tooltip: 'Gradient Tool (0)',
+            ),
+          ),
+
           const Divider(color: Colors.white24, height: 20),
 
           // 5. Library (moved down)

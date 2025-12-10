@@ -74,19 +74,23 @@ class DroneSettingsPane extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Mapping Strategy:'),
-              DropdownButton<DroneMapping>(
-                value: config.droneMapping,
-                items: DroneMapping.values.map((m) {
-                  return DropdownMenuItem(
-                    value: m,
-                    child: Text(m.name.toUpperCase()),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    onConfigChanged(config.copyWith(droneMapping: val));
-                  }
-                },
+              const SizedBox(width: 10),
+              Expanded(
+                child: DropdownButton<DroneMapping>(
+                  value: config.droneMapping,
+                  isExpanded: true,
+                  items: DroneMapping.values.map((m) {
+                    return DropdownMenuItem(
+                      value: m,
+                      child: Text(m.name.toUpperCase()),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      onConfigChanged(config.copyWith(droneMapping: val));
+                    }
+                  },
+                ),
               ),
             ],
           ),
@@ -126,19 +130,26 @@ class DroneSettingsPane extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Instrument (Program):'),
-              DropdownButton<int>(
-                value: config.droneInstrument,
-                items: List.generate(128, (index) {
-                  return DropdownMenuItem<int>(
-                    value: index,
-                    child: Text('Instrument $index'),
-                  );
-                }),
-                onChanged: (val) {
-                  if (val != null) {
-                    onConfigChanged(config.copyWith(droneInstrument: val));
-                  }
-                },
+              const SizedBox(width: 10),
+              Expanded(
+                child: DropdownButton<int>(
+                  value: config.droneInstrument,
+                  isExpanded: true,
+                  items: List.generate(128, (index) {
+                    return DropdownMenuItem<int>(
+                      value: index,
+                      child: Text(
+                        'Instrument $index',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }),
+                  onChanged: (val) {
+                    if (val != null) {
+                      onConfigChanged(config.copyWith(droneInstrument: val));
+                    }
+                  },
+                ),
               ),
             ],
           ),

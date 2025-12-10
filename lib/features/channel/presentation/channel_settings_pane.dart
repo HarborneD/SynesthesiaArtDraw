@@ -5,12 +5,14 @@ class ChannelSettingsPane extends StatelessWidget {
   final SoundFontChannel channel;
   final ValueChanged<SoundFontChannel> onChannelChanged;
   final List<String> availableSoundFonts;
+  final int channelIndex; // Added channelIndex
 
   const ChannelSettingsPane({
     super.key,
     required this.channel,
     required this.onChannelChanged,
     required this.availableSoundFonts,
+    required this.channelIndex, // Required now
   });
 
   @override
@@ -24,7 +26,7 @@ class ChannelSettingsPane extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Channel ${channel.program} Settings', // Simplified title for now
+                'Channel ${channelIndex + 1} Settings', // Fixed Header
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -32,16 +34,19 @@ class ChannelSettingsPane extends StatelessWidget {
               ),
               // Channel Volume
               SizedBox(
-                width: 150,
-                child: Column(
+                width: 200, // Increased width to prevent overflow
+                child: Row(
+                  // Changed to Row for better layout
                   children: [
                     const Text("Vol", style: TextStyle(fontSize: 12)),
-                    Slider(
-                      value: channel.channelVolume,
-                      min: 0.0,
-                      max: 1.0,
-                      onChanged: (val) => onChannelChanged(
-                        channel.copyWith(channelVolume: val),
+                    Expanded(
+                      child: Slider(
+                        value: channel.channelVolume,
+                        min: 0.0,
+                        max: 1.0,
+                        onChanged: (val) => onChannelChanged(
+                          channel.copyWith(channelVolume: val),
+                        ),
                       ),
                     ),
                   ],
@@ -167,13 +172,27 @@ class ChannelSettingsPane extends StatelessWidget {
           },
         ),
         const SizedBox(height: 10),
-        // Simple Program Slider for now
-        _buildSlider(
-          "Program Index",
-          channel.program.toDouble(),
-          0.0,
-          127.0,
-          (val) => onChannelChanged(channel.copyWith(program: val.toInt())),
+
+        // Changed from Slider to Dropdown
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Program Index'),
+            DropdownButton<int>(
+              value: channel.program,
+              items: List.generate(128, (index) {
+                return DropdownMenuItem<int>(
+                  value: index,
+                  child: Text('$index'),
+                );
+              }),
+              onChanged: (val) {
+                if (val != null) {
+                  onChannelChanged(channel.copyWith(program: val));
+                }
+              },
+            ),
+          ],
         ),
       ],
     );
@@ -259,6 +278,7 @@ class ChannelSettingsPane extends StatelessWidget {
       Colors.indigo,
       Colors.amber,
       Colors.brown,
+      Colors.grey,
     ];
 
     return Wrap(
