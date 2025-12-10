@@ -79,8 +79,6 @@ class _HomePageState extends State<HomePage>
   int _droneSfId = 0; // Drone Channel SF ID
 
   final List<String> _soundFonts = [
-    'Authentic Shreddage X Soundfont MEGALO VERSION PRE AMPED STEREO EQ - That1Rand0mChannel.sf2',
-    'Clean Stratocaster.sf2',
     'Dystopian Terra.sf2',
     'Emu Rockgtr.sf2',
     'Studio FG460s II Pro Guitar Pack.sf2',
@@ -91,7 +89,6 @@ class _HomePageState extends State<HomePage>
     'White Grand Piano IV.sf2',
     'White Grand Piano V.sf2',
     'casio_sk_200_gm.sf2',
-    'mick_gordon_string_efx.sf2',
   ];
 
   // Track loaded SoundFonts to get their IDs
@@ -954,29 +951,33 @@ class _HomePageState extends State<HomePage>
   void _nextSoundFont() {
     final current = _musicConfig.currentChannel.soundFont;
     final index = _soundFonts.indexOf(current);
-    final nextIndex = (index + 1) % _soundFonts.length;
-    final nextSF = _soundFonts[nextIndex];
-    _updateChannel(_musicConfig.currentChannel.copyWith(soundFont: nextSF));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('SF: $nextSF'),
-        duration: const Duration(milliseconds: 500),
-      ),
-    );
+    if (index < _soundFonts.length - 1) {
+      final nextIndex = index + 1;
+      final nextSF = _soundFonts[nextIndex];
+      _updateChannel(_musicConfig.currentChannel.copyWith(soundFont: nextSF));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('SF: $nextSF'),
+          duration: const Duration(milliseconds: 500),
+        ),
+      );
+    }
   }
 
   void _prevSoundFont() {
     final current = _musicConfig.currentChannel.soundFont;
     final index = _soundFonts.indexOf(current);
-    final prevIndex = (index - 1 + _soundFonts.length) % _soundFonts.length;
-    final nextSF = _soundFonts[prevIndex];
-    _updateChannel(_musicConfig.currentChannel.copyWith(soundFont: nextSF));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('SF: $nextSF'),
-        duration: const Duration(milliseconds: 500),
-      ),
-    );
+    if (index > 0) {
+      final nextIndex = index - 1;
+      final nextSF = _soundFonts[nextIndex];
+      _updateChannel(_musicConfig.currentChannel.copyWith(soundFont: nextSF));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('SF: $nextSF'),
+          duration: const Duration(milliseconds: 500),
+        ),
+      );
+    }
   }
 
   // Re-reading file for SF list availability...

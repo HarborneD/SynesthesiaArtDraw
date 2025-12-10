@@ -161,9 +161,7 @@ class ToolbarWidget extends StatelessWidget {
                 : Colors.transparent, // Highlight background if selected
             shape: BoxShape.circle,
             border: Border.all(
-              color: isSelected
-                  ? Colors.white
-                  : channelColor, // Border matches brush color or White if selected
+              color: channelColor, // Always use channel color
               width: isSelected ? 2 : 1.5,
             ),
           ),
@@ -171,9 +169,7 @@ class ToolbarWidget extends StatelessWidget {
             (index + 1).toString(),
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: isSelected
-                  ? Colors.white
-                  : channelColor, // Text matches brush color
+              color: channelColor, // Always use channel color
             ),
           ),
         ),

@@ -264,8 +264,7 @@ class MusicConfiguration {
       ),
       SoundFontChannel(
         name: 'Channel 7',
-        soundFont:
-            'Authentic Shreddage X Soundfont MEGALO VERSION PRE AMPED STEREO EQ - That1Rand0mChannel.sf2',
+        soundFont: 'White Grand Piano V.sf2',
         program: 0,
       ),
       SoundFontChannel(
