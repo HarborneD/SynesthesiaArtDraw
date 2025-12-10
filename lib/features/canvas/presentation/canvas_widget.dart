@@ -307,7 +307,7 @@ class _CanvasWidgetState extends State<CanvasWidget> {
 
   void _handlePanEnd(DragEndDetails details) {
     if (_isRightClick) return;
-    if (widget.drawingMode == DrawingMode.erase) return;
+    if (widget.drawingMode == DrawingMode.eraser) return;
 
     if (widget.currentLine != null) {
       if (widget.drawingMode == DrawingMode.gradient) {

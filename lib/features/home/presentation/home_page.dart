@@ -1061,13 +1061,6 @@ class _HomePageState extends State<HomePage>
                                   _toggleMetronome,
                               const SingleActivator(LogicalKeyboardKey.keyG):
                                   _selectGradientTool,
-                            }, // Hotkeys
-                              const SingleActivator(LogicalKeyboardKey.keyP):
-                                  _togglePlay,
-                              const SingleActivator(LogicalKeyboardKey.keyM):
-                                  _toggleMetronome,
-                              const SingleActivator(LogicalKeyboardKey.keyG):
-                                  _selectGradientTool,
                             },
                             child: Focus(
                               focusNode: _focusNode,
