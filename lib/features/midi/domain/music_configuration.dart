@@ -140,8 +140,8 @@ class MusicConfiguration {
       ),
       InstrumentSlot(
         name: 'Instrument 5',
-        soundFont: 'casio_sk_200_gm.sf2',
-        program: 68,
+        soundFont: 'Emu Rockgtr.sf2',
+        program: 2,
       ),
       InstrumentSlot(
         name: 'Instrument 6',
@@ -274,7 +274,7 @@ class MusicConfiguration {
 
   List<int> getActiveOctaves() {
     List<int> octs = [];
-    int start = 3;
+    int start = 2;
     for (int i = 0; i < octaves; i++) {
       octs.add(start + i);
     }
