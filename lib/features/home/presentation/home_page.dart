@@ -631,6 +631,11 @@ class _HomePageState extends State<HomePage>
       if (line.channelIndex >= 0 &&
           line.channelIndex < _musicConfig.soundFontChannels.length) {
         channelConfig = _musicConfig.soundFontChannels[line.channelIndex];
+
+        // Use correct SoundFont ID for this channel
+        if (_loadedSoundFonts.containsKey(channelConfig.soundFont)) {
+          sfIdToUse = _loadedSoundFonts[channelConfig.soundFont]!;
+        }
       }
     }
 
