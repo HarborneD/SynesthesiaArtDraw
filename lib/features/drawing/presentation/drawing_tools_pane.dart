@@ -146,7 +146,7 @@ class _DrawingToolsPaneState extends State<DrawingToolsPane> {
             const SizedBox(width: 8),
             Expanded(
               child: _buildModeButton(
-                DrawingMode.erase,
+                DrawingMode.eraser,
                 Icons.cleaning_services,
                 'Erase',
               ),

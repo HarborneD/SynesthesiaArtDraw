@@ -100,7 +100,6 @@ class ChannelSettingsPane extends StatelessWidget {
         // Trigger Config
         SwitchListTile(
           title: const Text("Trigger on Boundary"),
-          subtitle: const Text("Play sound when line crosses play-line"),
           value: channel.triggerOnBoundary,
           onChanged: (val) =>
               onChannelChanged(channel.copyWith(triggerOnBoundary: val)),
