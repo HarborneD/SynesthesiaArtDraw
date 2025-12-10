@@ -5,19 +5,16 @@ A Flutter application that combines drawing with generative music.
 
 | Key | Action |
 | --- | --- |
-| **Space** | Play/Pause |
+| **Space** / **P** | Play/Pause |
 | **M** | Toggle Metronome |
-| **S** | Toggle Sustain |
+| **S** | Toggle Sustain (Active Channel) |
+| **G** | Toggle Note Lines |
+| **E** | Eraser Tool |
+| **0** | Gradient Tool |
+| **1-8** | Select Channel 1-8 |
 | **ESC** | Close currently open pane |
-| **Left/Right Arrows** | Cycle SoundFonts |
-| **Up/Down Arrows** | Cycle Instruments (Programs) |
-| **+** / **-** | Prev / Next SoundFont (Alternate) |
-| **L** | Line Mode |
-| **B** | Gradient Mode |
-| **E** | Eraser Mode |
-| **G** | Toggle grid lines |
-| **1-7** | Toggle Scale Degrees |
-| **Scroll** | Adjust Tempo |
+| **Left/Right Arrows** | Cycle SoundFonts (Active Channel) |
+| **Up/Down Arrows** | Cycle Instruments/Programs (Active Channel) |
 
 A windows, mac, android and ios app that offers a canvas for uers to draw whilst hearing their art represented as music. 
 

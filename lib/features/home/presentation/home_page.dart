@@ -883,6 +883,93 @@ class _HomePageState extends State<HomePage>
 
   // --- BUILD ---
 
+  void _toggleSustain() {
+    final currentChannel = _musicConfig.currentChannel;
+    final updatedChannel = currentChannel.copyWith(
+      isSustainOn: !currentChannel.isSustainOn,
+    );
+    _updateChannel(updatedChannel);
+
+    // Feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Sustain ${updatedChannel.isSustainOn ? "ON" : "OFF"}'),
+        duration: const Duration(milliseconds: 500),
+      ),
+    );
+  }
+
+  void _toggleNoteLines() {
+    setState(() {
+      _showNoteLines = !_showNoteLines;
+    });
+  }
+
+  void _closeCurrentPane() {
+    if (_selectedPaneIndex != null) {
+      setState(() {
+        _selectedPaneIndex = null;
+      });
+    }
+  }
+
+  void _nextProgram() {
+    final channel = _musicConfig.currentChannel;
+    final newProgram = (channel.program + 1) % 128;
+    _updateChannel(channel.copyWith(program: newProgram));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Program: $newProgram'),
+        duration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
+
+  void _prevProgram() {
+    final channel = _musicConfig.currentChannel;
+    final newProgram = (channel.program - 1 + 128) % 128; // Wrap around
+    _updateChannel(channel.copyWith(program: newProgram));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Program: $newProgram'),
+        duration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
+
+  void _nextSoundFont() {
+    final current = _musicConfig.currentChannel.soundFont;
+    final index = _soundFonts.indexOf(current);
+    final nextIndex = (index + 1) % _soundFonts.length;
+    final nextSF = _soundFonts[nextIndex];
+    _updateChannel(_musicConfig.currentChannel.copyWith(soundFont: nextSF));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('SF: $nextSF'),
+        duration: const Duration(milliseconds: 500),
+      ),
+    );
+  }
+
+  void _prevSoundFont() {
+    final current = _musicConfig.currentChannel.soundFont;
+    final index = _soundFonts.indexOf(current);
+    final prevIndex = (index - 1 + _soundFonts.length) % _soundFonts.length;
+    final nextSF = _soundFonts[prevIndex];
+    _updateChannel(_musicConfig.currentChannel.copyWith(soundFont: nextSF));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('SF: $nextSF'),
+        duration: const Duration(milliseconds: 500),
+      ),
+    );
+  }
+
+  // Re-reading file for SF list availability...
+  // I'll stick to implementing methods I can do.
+  // Arrow Keys: Sustain, Program.
+  // I'll implement _nextSoundFont as placeholder or omit if risky.
+
   @override
   Widget build(BuildContext context) {
     Widget activePane;
@@ -1059,8 +1146,27 @@ class _HomePageState extends State<HomePage>
                                   _togglePlay,
                               const SingleActivator(LogicalKeyboardKey.keyM):
                                   _toggleMetronome,
+                              const SingleActivator(LogicalKeyboardKey.keyS):
+                                  _toggleSustain,
                               const SingleActivator(LogicalKeyboardKey.keyG):
-                                  _selectGradientTool,
+                                  _toggleNoteLines,
+                              const SingleActivator(LogicalKeyboardKey.keyE):
+                                  _selectEraserTool,
+                              const SingleActivator(LogicalKeyboardKey.escape):
+                                  _closeCurrentPane,
+
+                              // Navigation / Params
+                              const SingleActivator(LogicalKeyboardKey.arrowUp):
+                                  _nextProgram,
+                              const SingleActivator(
+                                LogicalKeyboardKey.arrowDown,
+                              ): _prevProgram,
+                              const SingleActivator(
+                                LogicalKeyboardKey.arrowLeft,
+                              ): _prevSoundFont,
+                              const SingleActivator(
+                                LogicalKeyboardKey.arrowRight,
+                              ): _nextSoundFont,
                             },
                             child: Focus(
                               focusNode: _focusNode,
@@ -1097,7 +1203,7 @@ class _HomePageState extends State<HomePage>
                                 backgroundShader: _backgroundShader,
                                 gradientStrokes: _gradientStrokes,
                                 showGradientOverlays: _selectedPaneIndex == 2,
-                                // Callbacks
+
                                 onCurrentLineUpdated: (line) {
                                   setState(() {
                                     _currentLine = line;
