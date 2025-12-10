@@ -165,6 +165,11 @@ class _HomePageState extends State<HomePage>
       channel: 0,
     );
 
+    // Select Drone Instrument (Channel 1)
+    // Assuming Drone uses program 0 for now? Or specific?
+    // User didn't specify Program for Drone settings pane, so defaulting to 0.
+    _midi.selectInstrument(sfId: _droneSfId, program: 0, channel: 1);
+
     setState(() {
       _isMidiInitialized = true;
     });
@@ -671,18 +676,18 @@ class _HomePageState extends State<HomePage>
       sfId: sfId,
     );
 
-    if (!config.isSustainOn) {
-      Future.delayed(Duration(milliseconds: durationMs), () {
-        _midi.stopNote(key: note, channel: midiChannel, sfId: sfId);
-      });
-    }
-    // If Sustain IS ON, we simply DO NOT send a stop note.
-    // The note will fade out or hold depending on SoundFont envelope,
-    // OR we relies on next play to cut it? No, polyphony allows overlap.
-    // "Sustain forever" issue might be: invalid stop commands or just never stopping.
-    // By checking !isSustainOn, we deliberately don't stop.
-    // If user wants them to stop EVENTUALLY, that's different.
-    // Use Case: Sustain = "Let ring".
+    // ALWAYS schedule a stop note to prevent infinite sustain on looping samples.
+    // "Sustain" in this context (sequencer) usually implies full duration play,
+    // but we must send NoteOff to end the note's lifecycle for the synth.
+    // If user wants longer notes, they should increase duration (not implemented per line yet).
+    // For now, we enforce the duration.
+    // If config.isSustainOn is true, we could arguably extend it, but "Infinite" is a bug.
+    // We will assume "Sustain On" means "Let it ring for a bit longer" or "Don't cut abruptly"?
+    // The user report "sustains forever" confirms we MUST send stopNote.
+
+    Future.delayed(Duration(milliseconds: durationMs), () {
+      _midi.stopNote(key: note, channel: midiChannel, sfId: sfId);
+    });
   }
 
   void _triggerDelay(
@@ -706,11 +711,9 @@ class _HomePageState extends State<HomePage>
         sfId: sfId,
       );
       // Echo Stop
-      if (!config.isSustainOn) {
-        Future.delayed(Duration(milliseconds: durationMs), () {
-          _midi.stopNote(key: note, channel: midiChannel, sfId: sfId);
-        });
-      }
+      Future.delayed(Duration(milliseconds: durationMs), () {
+        _midi.stopNote(key: note, channel: midiChannel, sfId: sfId);
+      });
     });
 
     // Echo 2
@@ -722,11 +725,9 @@ class _HomePageState extends State<HomePage>
         channel: midiChannel,
         sfId: sfId,
       );
-      if (!config.isSustainOn) {
-        Future.delayed(Duration(milliseconds: durationMs), () {
-          _midi.stopNote(key: note, channel: midiChannel, sfId: sfId);
-        });
-      }
+      Future.delayed(Duration(milliseconds: durationMs), () {
+        _midi.stopNote(key: note, channel: midiChannel, sfId: sfId);
+      });
     });
   }
 
@@ -998,7 +999,8 @@ class _HomePageState extends State<HomePage>
                           lines: _lines,
                           currentLine: _currentLine,
                           drawingMode: _currentMode,
-
+                          selectedChannelIndex: _musicConfig
+                              .selectedChannelIndex, // Added Property
                           // Channel Config Props
                           selectedColor: Color(
                             _musicConfig.currentChannel.colorValue,

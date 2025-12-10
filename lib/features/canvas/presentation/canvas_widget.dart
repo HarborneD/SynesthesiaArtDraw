@@ -35,7 +35,7 @@ class CanvasWidget extends StatefulWidget {
   final ValueChanged<DrawnLine?> onCurrentLineUpdated;
   final ValueChanged<DrawnLine> onLineCompleted;
   final ValueChanged<DrawnLine> onLineDeleted;
-  final Function(int, DrawnLine) onNoteTriggered;
+  final int selectedChannelIndex; // New Prop
 
   // Play Line Props
   final bool showPlayLine;
@@ -51,6 +51,7 @@ class CanvasWidget extends StatefulWidget {
     this.currentLine,
     required this.drawingMode,
     this.selectedColor = Colors.black,
+    required this.selectedChannelIndex, // Require this
     this.triggerOnBoundary = false,
     this.currentBrushSpread = 2.0,
     this.currentBrushOpacity = 0.5,
@@ -73,6 +74,7 @@ class CanvasWidget extends StatefulWidget {
 }
 
 class _CanvasWidgetState extends State<CanvasWidget> {
+  // ... (Keep existing State vars)
   Offset? _lastTriggerPoint;
   int? _lastTriggerNoteIndex;
   // DateTime? _lastDirectionTriggerTime; // Removed in favor of Hysteresis
@@ -106,6 +108,7 @@ class _CanvasWidgetState extends State<CanvasWidget> {
     super.dispose();
   }
 
+  // ... (Keep _checkAndUpdateBackingStore, _rebakeAll, _bakeNewLines)
   Future<void> _checkAndUpdateBackingStore(
     List<DrawnLine> lines,
     Size size,
@@ -232,6 +235,8 @@ class _CanvasWidgetState extends State<CanvasWidget> {
       path: [point],
       width: 2.0,
       color: widget.selectedColor,
+      channelIndex:
+          widget.selectedChannelIndex, // Set correct channel instantly
       // Apply correct brush settings from widget props
       spread: widget.currentBrushSpread,
       opacity: widget.currentBrushOpacity,
