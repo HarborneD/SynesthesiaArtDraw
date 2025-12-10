@@ -157,7 +157,7 @@ class MusicConfiguration {
 
   // Grid / Sequencer
   final int gridBars;
-  final bool showPlayLine;
+  bool showPlayLine;
 
   // Instrument Palette (Channels)
   final List<SoundFontChannel> soundFontChannels;

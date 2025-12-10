@@ -5,7 +5,8 @@ A Flutter application that combines drawing with generative music.
 
 | Key | Action |
 | --- | --- |
-| **Space** / **P** | Play/Pause |
+| **Space** | Play/Pause |
+| **P** | Toggle Play/Transport Line |
 | **M** | Toggle Metronome |
 | **S** | Toggle Sustain (Active Channel) |
 | **G** | Toggle Note Lines |

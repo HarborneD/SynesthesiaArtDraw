@@ -899,6 +899,20 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  void _togglePlayLine() {
+    setState(() {
+      _musicConfig.showPlayLine = !_musicConfig.showPlayLine;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Play Line ${_musicConfig.showPlayLine ? "Visible" : "Hidden"}',
+        ),
+        duration: const Duration(milliseconds: 500),
+      ),
+    );
+  }
+
   void _toggleNoteLines() {
     setState(() {
       _showNoteLines = !_showNoteLines;
@@ -1143,7 +1157,7 @@ class _HomePageState extends State<HomePage>
                                   _selectGradientTool,
                               // Hotkeys
                               const SingleActivator(LogicalKeyboardKey.keyP):
-                                  _togglePlay,
+                                  _togglePlayLine,
                               const SingleActivator(LogicalKeyboardKey.keyM):
                                   _toggleMetronome,
                               const SingleActivator(LogicalKeyboardKey.keyS):
