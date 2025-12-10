@@ -41,6 +41,9 @@ class CanvasWidget extends StatefulWidget {
   final bool showPlayLine;
   final Animation<double>? playLineAnimation;
 
+  // Callbacks
+  final void Function(int, DrawnLine) onNoteTriggered;
+
   const CanvasWidget({
     super.key,
     required this.musicConfig,
