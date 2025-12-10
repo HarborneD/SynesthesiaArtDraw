@@ -23,14 +23,7 @@ class DroneSettingsPane extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-            children: [
-              Text(
-                'Drone Settings',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              // Toggle removed as per request (it did nothing visible or was confusing)
-            ],
-          ),
+          Text('Drone Settings', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 20),
 
           Text('Update Interval: ${config.droneUpdateIntervalBars} Bars'),

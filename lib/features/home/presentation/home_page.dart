@@ -150,25 +150,28 @@ class _HomePageState extends State<HomePage>
     // 1. Load Drone SF
     await _loadSoundFontAsset(_musicConfig.droneSoundFont, isDrone: true);
 
-    // 2. Load Channel SF (Initial selection)
-    if (_musicConfig.soundFontChannels.isNotEmpty) {
-      await _loadSoundFontAsset(
-        _musicConfig.currentChannel.soundFont,
-        isDrone: false,
-      );
+    // 2. Initialize Channels 0-7
+    for (int i = 0; i < _musicConfig.soundFontChannels.length; i++) {
+      final ch = _musicConfig.soundFontChannels[i];
+      // Load (or get cached) SF Id
+      // Note: We use isDrone=false which updates _sfId, but we'll use return value too.
+      int id = await _loadSoundFontAsset(ch.soundFont, isDrone: false);
+
+      if (id != -1) {
+        _midi.selectInstrument(
+          sfId: id,
+          program: ch.program,
+          channel: i, // Map 1:1
+        );
+      }
     }
 
-    // Select Initial Instrument
+    // Select Drone Instrument (Channel 8)
     _midi.selectInstrument(
-      sfId: _sfId,
-      program: _musicConfig.currentChannel.program,
-      channel: 0,
+      sfId: _droneSfId,
+      program: _musicConfig.droneInstrument,
+      channel: 8,
     );
-
-    // Select Drone Instrument (Channel 1)
-    // Assuming Drone uses program 0 for now? Or specific?
-    // User didn't specify Program for Drone settings pane, so defaulting to 0.
-    _midi.selectInstrument(sfId: _droneSfId, program: 0, channel: 1);
 
     setState(() {
       _isMidiInitialized = true;
@@ -202,32 +205,27 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  // Helper to maintain state when switching SoundFonts
-  Future<void> _updateChannelSoundFont(String newFont) async {
-    // 1. Load/Get ID for new Font
-    await _loadSoundFontAsset(newFont, isDrone: false);
+  void _updateChannel(SoundFontChannel newChannel) async {
+    // Async to handle potential SF loading if needed
 
-    // 2. Select Instrument on 0
-    _midi.selectInstrument(
-      sfId: _sfId,
-      program: _musicConfig.currentChannel.program,
-      channel: 0,
-    );
-  }
-
-  void _updateChannel(SoundFontChannel newChannel) {
     // 1. Check if SF changed
+    int sfId = _sfId;
     if (newChannel.soundFont != _musicConfig.currentChannel.soundFont) {
-      _updateChannelSoundFont(newChannel.soundFont);
+      sfId = await _loadSoundFontAsset(newChannel.soundFont, isDrone: false);
+    } else {
+      // Get existing ID
+      if (_loadedSoundFonts.containsKey(newChannel.soundFont)) {
+        sfId = _loadedSoundFonts[newChannel.soundFont]!;
+      }
     }
-    // 2. Check if Program changed
-    else if (newChannel.program != _musicConfig.currentChannel.program) {
-      _midi.selectInstrument(
-        sfId: _sfId,
-        program: newChannel.program,
-        channel: 0,
-      );
-    }
+
+    // 2. Select Instrument (Always update to be safe, or check if program changed)
+    // We use the currently selected index as the MIDI channel
+    _midi.selectInstrument(
+      sfId: sfId,
+      program: newChannel.program,
+      channel: _musicConfig.selectedChannelIndex,
+    );
 
     final updatedChannels = List<SoundFontChannel>.from(
       _musicConfig.soundFontChannels,
@@ -412,7 +410,7 @@ class _HomePageState extends State<HomePage>
   void _updateDroneNotes(List<int> newNotes) {
     for (final note in _activeDroneNotes) {
       if (!newNotes.contains(note)) {
-        _midi.stopNote(key: note, channel: 1, sfId: _droneSfId);
+        _midi.stopNote(key: note, channel: 8, sfId: _droneSfId);
       }
     }
 
@@ -425,7 +423,7 @@ class _HomePageState extends State<HomePage>
         _midi.playNote(
           key: note,
           velocity: velocity,
-          channel: 1,
+          channel: 8,
           sfId: _droneSfId,
         );
       }
@@ -612,27 +610,6 @@ class _HomePageState extends State<HomePage>
       if (line.channelIndex >= 0 &&
           line.channelIndex < _musicConfig.soundFontChannels.length) {
         channelConfig = _musicConfig.soundFontChannels[line.channelIndex];
-
-        // We need the SFID for that channel.
-        // Since we don't store SFID in channel config directly (only filename),
-        // we rely on _loadedSoundFonts map.
-        if (_loadedSoundFonts.containsKey(channelConfig.soundFont)) {
-          sfIdToUse = _loadedSoundFonts[channelConfig.soundFont]!;
-        }
-
-        // Ensure the Program is selected on a channel unique to this?
-        // Limitations of flutter_midi_pro: channel argument in playNote might map to MIDI channel 0-15.
-        // If we reuse channel 0 for everything, we might get program clashes if we don't switch program instantly.
-        // Better strategy: Map App Channel X to Midi Channel X.
-        // MidiPro supports channels 0-15. We have 8 app channels. Perfect.
-        // We must make sure the Program is set for that MIDI channel.
-
-        // Lazy Program Set:
-        _midi.selectInstrument(
-          sfId: sfIdToUse,
-          program: channelConfig.program,
-          channel: line.channelIndex,
-        );
       }
     }
 
