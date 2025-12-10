@@ -8,12 +8,18 @@ class ToolbarWidget extends StatelessWidget {
   final int selectedChannelIndex;
   final ValueChanged<int> onChannelSelected;
 
+  // New: Gradient Tool Props
+  final bool isGradientToolActive;
+  final VoidCallback onGradientToolSelected;
+
   const ToolbarWidget({
     super.key,
     required this.onPaneSelected,
     required this.selectedPaneIndex,
     required this.selectedChannelIndex,
     required this.onChannelSelected,
+    required this.isGradientToolActive,
+    required this.onGradientToolSelected,
   });
 
   @override
@@ -68,20 +74,20 @@ class ToolbarWidget extends StatelessWidget {
             ),
           ),
 
-          // Gradient Tool Icon (Mapped to '0')
+          // Gradient Tool Icon (Now below Channel 8 in the flow)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
+            padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
             child: IconButton(
-              icon: const Icon(Icons.gradient, color: Colors.white54),
-              onPressed: () {
-                // Determine how to communicate "Gradient Tool" selection?
-                // Currently Toolbar only selects channel or pane.
-                // Maybe just visual for now or callback if needed.
-                // For now just icon as requested.
-              },
+              icon: const Icon(Icons.gradient),
+              color: isGradientToolActive
+                  ? Colors.tealAccent
+                  : Colors.white54, // Highlight active state
+              onPressed: onGradientToolSelected,
               tooltip: 'Gradient Tool (0)',
             ),
           ),
+
+          const Divider(color: Colors.white24, height: 20),
 
           const Divider(color: Colors.white24, height: 20),
 

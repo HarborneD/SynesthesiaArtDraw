@@ -23,19 +23,12 @@ class DroneSettingsPane extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Drone Settings',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              Switch(
-                value: config.droneEnabled,
-                onChanged: (val) {
-                  onConfigChanged(config.copyWith(droneEnabled: val));
-                },
-              ),
+              // Toggle removed as per request (it did nothing visible or was confusing)
             ],
           ),
           const SizedBox(height: 20),

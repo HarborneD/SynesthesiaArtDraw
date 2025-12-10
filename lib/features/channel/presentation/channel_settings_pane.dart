@@ -296,9 +296,20 @@ class ChannelSettingsPane extends StatelessWidget {
               color: color,
               shape: BoxShape.circle,
               border: Border.all(
-                color: isSelected ? Colors.blueAccent : Colors.grey,
-                width: isSelected ? 3.0 : 1.0,
+                color: isSelected
+                    ? Colors.white
+                    : Colors.transparent, // High contrast selection
+                width: isSelected ? 3.0 : 0.0, // Clearer Thickness
               ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.5),
+                        blurRadius: 4,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null, // Add glow for extra visibility
             ),
           ),
         );

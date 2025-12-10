@@ -255,12 +255,22 @@ class _HomePageState extends State<HomePage>
     );
 
     _updateConfig(newConfig);
+
+    // Ensure we go back to Line mode if coming from Gradient
+    if (_currentMode != DrawingMode.line) {
+      setState(() {
+        _currentMode = DrawingMode.line;
+        // Optionally switch to Channel Settings Pane if desired?
+        // User didn't strictly say so, but it makes sense.
+        // Let's open channel pane.
+        _selectedPaneIndex = 3;
+      });
+    }
   }
 
   void _selectGradientTool() {
-    // Placeholder for Gradient Tool selection logic
-    // Could switch pane to Background (index 2) automatically?
     setState(() {
+      _currentMode = DrawingMode.gradient;
       _selectedPaneIndex = 2; // Auto-open Background pane
     });
   }
@@ -952,6 +962,8 @@ class _HomePageState extends State<HomePage>
             },
             selectedChannelIndex: _musicConfig.selectedChannelIndex,
             onChannelSelected: _selectChannel,
+            isGradientToolActive: _currentMode == DrawingMode.gradient,
+            onGradientToolSelected: _selectGradientTool,
           ),
 
           // Main Content Area (SplitLayout)
@@ -1071,11 +1083,11 @@ class _HomePageState extends State<HomePage>
                     ),
                   ),
 
-                  // 2. Transport Bar (Bottom)
+                  // 2. Transport Bar (Now Top)
                   Positioned(
                     left: 20,
                     right: 20,
-                    bottom: 20,
+                    top: 20, // Moved from bottom to top
                     child: TransportBar(
                       isPlaying: _isPlaying,
                       onPlayPause: _togglePlay,
