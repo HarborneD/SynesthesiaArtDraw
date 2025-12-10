@@ -793,6 +793,7 @@ class _HomePageState extends State<HomePage>
   void _updateConfig(MusicConfiguration config) {
     final bool droneVolumeChanged =
         config.droneVolume != _musicConfig.droneVolume;
+    final bool tempoChanged = config.tempo != _musicConfig.tempo;
 
     setState(() {
       _musicConfig = config;
@@ -801,6 +802,10 @@ class _HomePageState extends State<HomePage>
     if (droneVolumeChanged && _musicConfig.droneEnabled) {
       // Force re-trigger of current drone notes with new volume
       _updateDroneNotes(_activeDroneNotes, forceRetrigger: true);
+    }
+
+    if (tempoChanged && _isPlaying) {
+      _startTimer(); // Restart timer with new tempo
     }
   }
 
@@ -948,160 +953,189 @@ class _HomePageState extends State<HomePage>
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Row(
+      body: Column(
         children: [
-          // Toolbar (Left, always visible)
-          ToolbarWidget(
-            selectedPaneIndex: _selectedPaneIndex,
-            onPaneSelected: (index) {
-              setState(() {
-                if (_selectedPaneIndex == index) {
-                  _selectedPaneIndex = null;
-                } else {
-                  _selectedPaneIndex = index;
-                }
-              });
-            },
-            selectedChannelIndex: _musicConfig.selectedChannelIndex,
-            onChannelSelected: _selectChannel,
-            isGradientToolActive: _currentMode == DrawingMode.gradient,
-            onGradientToolSelected: _selectGradientTool,
+          // 1. Transport Bar (Top of Window)
+          Container(
+            height: 60, // Fixed height for transport bar
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Colors.white12)),
+            ),
+            child: TransportBar(
+              isPlaying: _isPlaying,
+              onPlayPause: _togglePlay,
+              onStop: _stop,
+              isMetronomeOn: _isMetronomeOn,
+              onMetronomeToggle: _toggleMetronome,
+              currentTick: _currentTick,
+              gridBeats: _musicConfig.totalBeats,
+            ),
           ),
 
-          // Main Content Area (SplitLayout)
+          // 2. Main Content
           Expanded(
-            child: SplitLayout(
-              pane: _selectedPaneIndex != null ? activePane : null,
-              paneAtStart: true,
-              content: Stack(
-                children: [
-                  // 1. Canvas
-                  Positioned.fill(
-                    child: CallbackShortcuts(
-                      bindings: {
-                        const SingleActivator(LogicalKeyboardKey.space):
-                            _togglePlay,
-                        // Number Keys for Channels
-                        const SingleActivator(LogicalKeyboardKey.digit1): () =>
-                            _selectChannel(0),
-                        const SingleActivator(LogicalKeyboardKey.digit2): () =>
-                            _selectChannel(1),
-                        const SingleActivator(LogicalKeyboardKey.digit3): () =>
-                            _selectChannel(2),
-                        const SingleActivator(LogicalKeyboardKey.digit4): () =>
-                            _selectChannel(3),
-                        const SingleActivator(LogicalKeyboardKey.digit5): () =>
-                            _selectChannel(4),
-                        const SingleActivator(LogicalKeyboardKey.digit6): () =>
-                            _selectChannel(5),
-                        const SingleActivator(LogicalKeyboardKey.digit7): () =>
-                            _selectChannel(6),
-                        const SingleActivator(LogicalKeyboardKey.digit8): () =>
-                            _selectChannel(7),
-                        // Tool Keys
-                        const SingleActivator(LogicalKeyboardKey.digit0):
-                            _selectGradientTool,
-                      },
-                      child: Focus(
-                        focusNode: _focusNode,
-                        autofocus: true,
-                        child: CanvasWidget(
-                          musicConfig: _musicConfig,
-                          showNoteLines: _showNoteLines,
-                          segmentLength: _segmentLength,
-                          minPixels: _minPixels,
-                          lines: _lines,
-                          currentLine: _currentLine,
-                          drawingMode: _currentMode,
-                          selectedChannelIndex: _musicConfig
-                              .selectedChannelIndex, // Added Property
-                          // Channel Config Props
-                          selectedColor: Color(
-                            _musicConfig.currentChannel.colorValue,
+            child: Row(
+              children: [
+                // Toolbar (Left, always visible)
+                ToolbarWidget(
+                  selectedPaneIndex: _selectedPaneIndex,
+                  onPaneSelected: (index) {
+                    setState(() {
+                      if (_selectedPaneIndex == index) {
+                        _selectedPaneIndex = null;
+                      } else {
+                        _selectedPaneIndex = index;
+                      }
+                    });
+                  },
+                  selectedChannelIndex: _musicConfig.selectedChannelIndex,
+                  onChannelSelected: _selectChannel,
+                  isGradientToolActive: _currentMode == DrawingMode.gradient,
+                  onGradientToolSelected: _selectGradientTool,
+                  channels:
+                      _musicConfig.soundFontChannels, // Pass Channels for Icons
+                ),
+
+                // Main Content Area (SplitLayout)
+                Expanded(
+                  child: SplitLayout(
+                    pane: _selectedPaneIndex != null ? activePane : null,
+                    paneAtStart: true,
+                    content: Stack(
+                      children: [
+                        // 1. Canvas
+                        Positioned.fill(
+                          child: CallbackShortcuts(
+                            bindings: {
+                              const SingleActivator(LogicalKeyboardKey.space):
+                                  _togglePlay,
+                              // Number Keys for Channels
+                              const SingleActivator(
+                                LogicalKeyboardKey.digit1,
+                              ): () =>
+                                  _selectChannel(0),
+                              const SingleActivator(
+                                LogicalKeyboardKey.digit2,
+                              ): () =>
+                                  _selectChannel(1),
+                              const SingleActivator(
+                                LogicalKeyboardKey.digit3,
+                              ): () =>
+                                  _selectChannel(2),
+                              const SingleActivator(
+                                LogicalKeyboardKey.digit4,
+                              ): () =>
+                                  _selectChannel(3),
+                              const SingleActivator(
+                                LogicalKeyboardKey.digit5,
+                              ): () =>
+                                  _selectChannel(4),
+                              const SingleActivator(
+                                LogicalKeyboardKey.digit6,
+                              ): () =>
+                                  _selectChannel(5),
+                              const SingleActivator(
+                                LogicalKeyboardKey.digit7,
+                              ): () =>
+                                  _selectChannel(6),
+                              const SingleActivator(
+                                LogicalKeyboardKey.digit8,
+                              ): () =>
+                                  _selectChannel(7),
+                              // Tool Keys
+                              const SingleActivator(LogicalKeyboardKey.digit0):
+                                  _selectGradientTool,
+                            },
+                            child: Focus(
+                              focusNode: _focusNode,
+                              autofocus: true,
+                              child: CanvasWidget(
+                                musicConfig: _musicConfig,
+                                showNoteLines: _showNoteLines,
+                                segmentLength: _segmentLength,
+                                minPixels: _minPixels,
+                                lines: _lines,
+                                currentLine: _currentLine,
+                                drawingMode: _currentMode,
+                                selectedChannelIndex:
+                                    _musicConfig.selectedChannelIndex,
+                                // Channel Config Props
+                                selectedColor: Color(
+                                  _musicConfig.currentChannel.colorValue,
+                                ),
+                                triggerOnBoundary: _musicConfig
+                                    .currentChannel
+                                    .triggerOnBoundary,
+                                currentBrushSpread:
+                                    _musicConfig.currentChannel.brushSpread,
+                                currentBrushOpacity:
+                                    _musicConfig.currentChannel.brushOpacity,
+                                currentBristleCount:
+                                    _musicConfig.currentChannel.bristleCount,
+                                currentUseNeonGlow:
+                                    _musicConfig.currentChannel.useNeonGlow,
+
+                                // Misc
+                                showPlayLine: _musicConfig.showPlayLine,
+                                playLineAnimation: _playLineController,
+                                backgroundShader: _backgroundShader,
+                                gradientStrokes: _gradientStrokes,
+                                showGradientOverlays: _selectedPaneIndex == 2,
+                                // Callbacks
+                                onCurrentLineUpdated: (line) {
+                                  setState(() {
+                                    _currentLine = line;
+                                  });
+                                },
+                                onLineCompleted: (line) {
+                                  // NEW: Inject Channel Index into Line
+                                  final lineWithChannel = DrawnLine(
+                                    id: line.id,
+                                    path: line.path,
+                                    color: line.color,
+                                    width: line.width,
+                                    soundFont: line.soundFont,
+                                    program: line.program,
+                                    sfId: line.sfId,
+                                    instrumentSlotIndex:
+                                        line.instrumentSlotIndex,
+                                    channelIndex: _musicConfig
+                                        .selectedChannelIndex, // INJECT HERE
+                                    spread: line.spread,
+                                    opacity: line.opacity,
+                                    bristleCount: line.bristleCount,
+                                    useNeonGlow: line.useNeonGlow,
+                                  );
+
+                                  setState(() {
+                                    _lines = List.from(_lines)
+                                      ..add(lineWithChannel);
+                                    _currentLine = null;
+                                  });
+                                },
+                                onLineDeleted: (line) {
+                                  setState(() {
+                                    _lines = List.from(_lines)..remove(line);
+                                  });
+                                },
+                                onNoteTriggered: (noteIndex, line) {
+                                  _triggerLineSound(noteIndex, line);
+                                },
+
+                                onGradientStrokeAdded: (stroke) {
+                                  setState(() {
+                                    _gradientStrokes.add(stroke);
+                                  });
+                                },
+                              ),
+                            ),
                           ),
-                          triggerOnBoundary:
-                              _musicConfig.currentChannel.triggerOnBoundary,
-                          currentBrushSpread:
-                              _musicConfig.currentChannel.brushSpread,
-                          currentBrushOpacity:
-                              _musicConfig.currentChannel.brushOpacity,
-                          currentBristleCount:
-                              _musicConfig.currentChannel.bristleCount,
-                          currentUseNeonGlow:
-                              _musicConfig.currentChannel.useNeonGlow,
-
-                          // Misc
-                          showPlayLine: _musicConfig.showPlayLine,
-                          playLineAnimation: _playLineController,
-                          backgroundShader: _backgroundShader,
-                          gradientStrokes: _gradientStrokes,
-                          showGradientOverlays: _selectedPaneIndex == 2,
-                          // Callbacks
-                          onCurrentLineUpdated: (line) {
-                            setState(() {
-                              _currentLine = line;
-                            });
-                          },
-                          onLineCompleted: (line) {
-                            // NEW: Inject Channel Index into Line
-                            final lineWithChannel = DrawnLine(
-                              id: line.id,
-                              path: line.path,
-                              color: line.color,
-                              width: line.width,
-                              soundFont: line.soundFont,
-                              program: line.program,
-                              sfId: line.sfId,
-                              instrumentSlotIndex: line.instrumentSlotIndex,
-                              channelIndex: _musicConfig
-                                  .selectedChannelIndex, // INJECT HERE
-                              spread: line.spread,
-                              opacity: line.opacity,
-                              bristleCount: line.bristleCount,
-                              useNeonGlow: line.useNeonGlow,
-                            );
-
-                            setState(() {
-                              _lines = List.from(_lines)..add(lineWithChannel);
-                              _currentLine = null;
-                            });
-                          },
-                          onLineDeleted: (line) {
-                            setState(() {
-                              _lines = List.from(_lines)..remove(line);
-                            });
-                          },
-                          onNoteTriggered: (noteIndex, line) {
-                            _triggerLineSound(noteIndex, line);
-                          },
-
-                          onGradientStrokeAdded: (stroke) {
-                            setState(() {
-                              _gradientStrokes.add(stroke);
-                            });
-                          },
                         ),
-                      ),
+                      ],
                     ),
                   ),
-
-                  // 2. Transport Bar (Now Top)
-                  Positioned(
-                    left: 20,
-                    right: 20,
-                    top: 20, // Moved from bottom to top
-                    child: TransportBar(
-                      isPlaying: _isPlaying,
-                      onPlayPause: _togglePlay,
-                      onStop: _stop,
-                      isMetronomeOn: _isMetronomeOn,
-                      onMetronomeToggle: _toggleMetronome,
-                      currentTick: _currentTick,
-                      gridBeats: _musicConfig.totalBeats,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
