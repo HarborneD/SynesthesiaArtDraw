@@ -210,7 +210,6 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-
   void _updateChannel(SoundFontChannel newChannel) {
     // 1. Check if SF changed
     if (newChannel.soundFont != _musicConfig.currentChannel.soundFont) {
@@ -254,11 +253,11 @@ class _HomePageState extends State<HomePage>
   }
 
   void _selectGradientTool() {
-     // Placeholder for Gradient Tool selection logic
-     // Could switch pane to Background (index 2) automatically?
-     setState(() {
-       _selectedPaneIndex = 2; // Auto-open Background pane
-     });
+    // Placeholder for Gradient Tool selection logic
+    // Could switch pane to Background (index 2) automatically?
+    setState(() {
+      _selectedPaneIndex = 2; // Auto-open Background pane
+    });
   }
 
   void _togglePlay() {
@@ -347,7 +346,7 @@ class _HomePageState extends State<HomePage>
     if (_musicConfig.droneEnabled && (_currentTick % beatsPerInterval == 0)) {
       _processDroneLogic();
     } else if (!_musicConfig.droneEnabled && _activeDroneNotes.isNotEmpty) {
-       _updateDroneNotes([]); // Silence drone if disabled
+      _updateDroneNotes([]); // Silence drone if disabled
     }
 
     _checkLineTriggers();
@@ -404,7 +403,10 @@ class _HomePageState extends State<HomePage>
 
     for (final note in newNotes) {
       if (!_activeDroneNotes.contains(note)) {
-        int velocity = (127 * _musicConfig.droneVolume).round().clamp(0, 127); // Fix Volume Scaling
+        int velocity = (127 * _musicConfig.droneVolume).round().clamp(
+          0,
+          127,
+        ); // Fix Volume Scaling
         _midi.playNote(
           key: note,
           velocity: velocity,
@@ -416,7 +418,108 @@ class _HomePageState extends State<HomePage>
     _activeDroneNotes = newNotes;
   }
 
-  // ... (Keep _getScanLineColor)
+  Color _getScanLineColor(double xPercent) {
+    final xPos = xPercent * MediaQuery.of(context).size.width;
+
+    // Check Lines
+    int lineCount = 0;
+    double r = 0, g = 0, b = 0;
+
+    for (final line in _lines) {
+      if (line.path.length < 2) continue;
+      for (int i = 0; i < line.path.length - 1; i++) {
+        final p1 = line.path[i].point;
+        final p2 = line.path[i + 1].point;
+
+        if ((p1.dx <= xPos && p2.dx >= xPos) ||
+            (p1.dx >= xPos && p2.dx <= xPos)) {
+          final c = line.color;
+          r += c.red;
+          g += c.green;
+          b += c.blue;
+          lineCount++;
+          break;
+        }
+      }
+    }
+
+    if (lineCount > 0) {
+      return Color.fromARGB(
+        255,
+        (r / lineCount).round(),
+        (g / lineCount).round(),
+        (b / lineCount).round(),
+      );
+    }
+
+    // Check Background
+    if (_gradientStrokes.isNotEmpty) {
+      double wSum = 0.0;
+      double accR = 0.0;
+      double accG = 0.0;
+      double accB = 0.0;
+
+      double toLinear(double c) => pow(c / 255.0, 2.2).toDouble();
+      int toSrgb(double c) => (pow(c, 1.0 / 2.2) * 255.0).round().clamp(0, 255);
+
+      for (final stroke in _gradientStrokes) {
+        final p0 = stroke.p0;
+        final p1 = stroke.p1;
+        final radius = stroke.intensity;
+        double dist = 0.0;
+        double t = 0.0;
+
+        final minX = min(p0.dx, p1.dx);
+        final maxX = max(p0.dx, p1.dx);
+
+        if (xPos >= minX && xPos <= maxX) {
+          dist = 0.0; // Intersection logic simplified
+          final vdx = p1.dx - p0.dx;
+          if (vdx.abs() > 0.001) {
+            t = (xPos - p0.dx) / vdx;
+          } else {
+            t = 0.5;
+          }
+        } else {
+          final d0 = (p0.dx - xPos).abs();
+          final d1 = (p1.dx - xPos).abs();
+          if (d0 < d1) {
+            dist = d0;
+            t = 0.0;
+          } else {
+            dist = d1;
+            t = 1.0;
+          }
+        }
+
+        t = t.clamp(0.0, 1.0);
+
+        if (dist < radius) {
+          final weight = 1.0 - (dist / radius);
+          final c1 = stroke.colors.first;
+          final c2 = stroke.colors.last;
+          final mixedR = c1.red + (c2.red - c1.red) * t;
+          final mixedG = c1.green + (c2.green - c1.green) * t;
+          final mixedB = c1.blue + (c2.blue - c1.blue) * t;
+
+          accR += toLinear(mixedR) * weight;
+          accG += toLinear(mixedG) * weight;
+          accB += toLinear(mixedB) * weight;
+          wSum += weight;
+        }
+      }
+
+      if (wSum > 0.0) {
+        return Color.fromARGB(
+          255,
+          toSrgb(accR / wSum),
+          toSrgb(accG / wSum),
+          toSrgb(accB / wSum),
+        );
+      }
+    }
+    return Colors.black;
+  }
 
   final Set<DrawnLine> _intersectingLines = {};
 
@@ -457,9 +560,9 @@ class _HomePageState extends State<HomePage>
         currentIntersections.add(line);
         if (!_intersectingLines.contains(line)) {
           // New trigger
-          
+
           double yNorm = (intersectY / screenHeight).clamp(0.0, 1.0);
-          yNorm = 1.0 - yNorm; 
+          yNorm = 1.0 - yNorm;
 
           final allNotes = _musicConfig.getAllMidiNotes();
           if (allNotes.isNotEmpty) {
@@ -490,67 +593,106 @@ class _HomePageState extends State<HomePage>
     int sfIdToUse = _sfId;
 
     if (line != null) {
-       // Use source channel
-       if (line.channelIndex >= 0 && line.channelIndex < _musicConfig.soundFontChannels.length) {
-         channelConfig = _musicConfig.soundFontChannels[line.channelIndex];
-         
-         // We need the SFID for that channel.
-         // Since we don't store SFID in channel config directly (only filename), 
-         // we rely on _loadedSoundFonts map.
-         if (_loadedSoundFonts.containsKey(channelConfig.soundFont)) {
-            sfIdToUse = _loadedSoundFonts[channelConfig.soundFont]!;
-         }
-         
-         // Ensure the Program is selected on a channel unique to this?
-         // Limitations of flutter_midi_pro: channel argument in playNote might map to MIDI channel 0-15.
-         // If we reuse channel 0 for everything, we might get program clashes if we don't switch program instantly.
-         // Better strategy: Map App Channel X to Midi Channel X.
-         // MidiPro supports channels 0-15. We have 8 app channels. Perfect.
-         // We must make sure the Program is set for that MIDI channel.
-         
-         // Lazy Program Set:
-         _midi.selectInstrument(sfId: sfIdToUse, program: channelConfig.program, channel: line.channelIndex);
-       }
+      // Use source channel
+      if (line.channelIndex >= 0 &&
+          line.channelIndex < _musicConfig.soundFontChannels.length) {
+        channelConfig = _musicConfig.soundFontChannels[line.channelIndex];
+
+        // We need the SFID for that channel.
+        // Since we don't store SFID in channel config directly (only filename),
+        // we rely on _loadedSoundFonts map.
+        if (_loadedSoundFonts.containsKey(channelConfig.soundFont)) {
+          sfIdToUse = _loadedSoundFonts[channelConfig.soundFont]!;
+        }
+
+        // Ensure the Program is selected on a channel unique to this?
+        // Limitations of flutter_midi_pro: channel argument in playNote might map to MIDI channel 0-15.
+        // If we reuse channel 0 for everything, we might get program clashes if we don't switch program instantly.
+        // Better strategy: Map App Channel X to Midi Channel X.
+        // MidiPro supports channels 0-15. We have 8 app channels. Perfect.
+        // We must make sure the Program is set for that MIDI channel.
+
+        // Lazy Program Set:
+        _midi.selectInstrument(
+          sfId: sfIdToUse,
+          program: channelConfig.program,
+          channel: line.channelIndex,
+        );
+      }
     }
 
     // VELOCITY
     int baseVelocity = 100;
-    int velocity = (baseVelocity * channelConfig.channelVolume)
-        .round()
-        .clamp(0, 127);
+    int velocity = (baseVelocity * channelConfig.channelVolume).round().clamp(
+      0,
+      127,
+    );
     int duration = 200; // ms
 
     // PLAY
     // Use line.channelIndex as the MIDI channel
-    int midiChannel = (line?.channelIndex ?? 0); 
+    int midiChannel = (line?.channelIndex ?? 0);
 
-    _playNoteWithDuration(note, velocity, duration, sfIdToUse, midiChannel, channelConfig);
+    _playNoteWithDuration(
+      note,
+      velocity,
+      duration,
+      sfIdToUse,
+      midiChannel,
+      channelConfig,
+    );
 
     // DELAY LOGIC
     if (channelConfig.isDelayOn) {
-      _triggerDelay(note, velocity, duration, sfIdToUse, midiChannel, channelConfig);
+      _triggerDelay(
+        note,
+        velocity,
+        duration,
+        sfIdToUse,
+        midiChannel,
+        channelConfig,
+      );
     }
   }
-  
+
   // Updated Play with Sustain Logic
-  void _playNoteWithDuration(int note, int velocity, int durationMs, int sfId, int midiChannel, SoundFontChannel config) {
-    _midi.playNote(key: note, velocity: velocity, channel: midiChannel, sfId: sfId);
+  void _playNoteWithDuration(
+    int note,
+    int velocity,
+    int durationMs,
+    int sfId,
+    int midiChannel,
+    SoundFontChannel config,
+  ) {
+    _midi.playNote(
+      key: note,
+      velocity: velocity,
+      channel: midiChannel,
+      sfId: sfId,
+    );
 
     if (!config.isSustainOn) {
-       Future.delayed(Duration(milliseconds: durationMs), () {
+      Future.delayed(Duration(milliseconds: durationMs), () {
         _midi.stopNote(key: note, channel: midiChannel, sfId: sfId);
       });
     }
-    // If Sustain IS ON, we simply DO NOT send a stop note. 
-    // The note will fade out or hold depending on SoundFont envelope, 
+    // If Sustain IS ON, we simply DO NOT send a stop note.
+    // The note will fade out or hold depending on SoundFont envelope,
     // OR we relies on next play to cut it? No, polyphony allows overlap.
     // "Sustain forever" issue might be: invalid stop commands or just never stopping.
     // By checking !isSustainOn, we deliberately don't stop.
-    // If user wants them to stop EVENTUALLY, that's different. 
+    // If user wants them to stop EVENTUALLY, that's different.
     // Use Case: Sustain = "Let ring".
   }
 
-  void _triggerDelay(int note, int velocity, int durationMs, int sfId, int midiChannel, SoundFontChannel config) {
+  void _triggerDelay(
+    int note,
+    int velocity,
+    int durationMs,
+    int sfId,
+    int midiChannel,
+    SoundFontChannel config,
+  ) {
     int delayMs = config.delayTime.toInt();
     double feedback = config.delayFeedback;
 
@@ -563,12 +705,12 @@ class _HomePageState extends State<HomePage>
         channel: midiChannel,
         sfId: sfId,
       );
-       // Echo Stop
-       if(!config.isSustainOn) {
-         Future.delayed(Duration(milliseconds: durationMs), () {
-             _midi.stopNote(key: note, channel: midiChannel, sfId: sfId);
-         });
-       }
+      // Echo Stop
+      if (!config.isSustainOn) {
+        Future.delayed(Duration(milliseconds: durationMs), () {
+          _midi.stopNote(key: note, channel: midiChannel, sfId: sfId);
+        });
+      }
     });
 
     // Echo 2
@@ -580,11 +722,11 @@ class _HomePageState extends State<HomePage>
         channel: midiChannel,
         sfId: sfId,
       );
-      if(!config.isSustainOn) {
-         Future.delayed(Duration(milliseconds: durationMs), () {
-             _midi.stopNote(key: note, channel: midiChannel, sfId: sfId);
-         });
-       }
+      if (!config.isSustainOn) {
+        Future.delayed(Duration(milliseconds: durationMs), () {
+          _midi.stopNote(key: note, channel: midiChannel, sfId: sfId);
+        });
+      }
     });
   }
 
@@ -609,7 +751,110 @@ class _HomePageState extends State<HomePage>
     _updateChannel(newChannel);
   }
 
-  // ... (Keep helper methods like _noteNameToMidi, _getScaleOffsets, _updateConfig, _loadPresets, _savePreset, _savePresetsToDisk, _loadCanvases)
+  int _noteNameToMidi(String noteName) {
+    int noteIndex = MusicConfiguration.keys.indexOf(noteName);
+    if (noteIndex == -1) noteIndex = 0;
+    return noteIndex;
+  }
+
+  List<int> _getScaleOffsets(String scaleName) {
+    // Basic simplified map, ideal would be to use MusicConfig static maps if accessible or re-declare
+    switch (scaleName) {
+      case 'Major':
+        return [0, 2, 4, 5, 7, 9, 11];
+      case 'Minor':
+        return [0, 2, 3, 5, 7, 8, 10];
+      case 'Dorian':
+        return [0, 2, 3, 5, 7, 9, 10];
+      case 'Phrygian':
+        return [0, 1, 3, 5, 7, 8, 10];
+      case 'Lydian':
+        return [0, 2, 4, 6, 7, 9, 11];
+      case 'Mixolydian':
+        return [0, 2, 4, 5, 7, 9, 10];
+      case 'Locrian':
+        return [0, 1, 3, 5, 6, 8, 10];
+      case 'Pentatonic Major':
+        return [0, 2, 4, 7, 9];
+      case 'Pentatonic Minor':
+        return [0, 3, 5, 7, 10];
+      case 'Chromatic':
+        return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+      default:
+        return [0, 2, 4, 5, 7, 9, 11];
+    }
+  }
+
+  void _updateConfig(MusicConfiguration config) {
+    setState(() {
+      _musicConfig = config;
+    });
+  }
+
+  Future<void> _loadPresets() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? presetsJson = prefs.getString('instrument_presets');
+    if (presetsJson != null) {
+      final List<dynamic> decoded = jsonDecode(presetsJson);
+      setState(() {
+        _presets = decoded.map((e) => InstrumentPreset.fromJson(e)).toList();
+      });
+    }
+  }
+
+  Future<void> _savePreset(String name) async {
+    final currentCh = _musicConfig.currentChannel;
+
+    // Check if overwrite
+    int existingIndex = _presets.indexWhere((p) => p.name == name);
+    List<InstrumentPreset> newPresets = List.from(_presets);
+
+    final newPreset = InstrumentPreset(
+      name: name,
+      brushSpread: currentCh.brushSpread,
+      brushOpacity: currentCh.brushOpacity,
+      bristleCount: currentCh.bristleCount,
+      useNeonGlow: currentCh.useNeonGlow,
+      colorValue: currentCh.colorValue,
+      triggerOnBoundary: currentCh.triggerOnBoundary,
+      minPixelsForTrigger: 10.0,
+      soundFont: currentCh.soundFont,
+      programIndex: currentCh.program,
+      isDelayOn: currentCh.isDelayOn,
+      delayTime: currentCh.delayTime,
+      delayFeedback: currentCh.delayFeedback,
+      reverbLevel: currentCh.reverbLevel,
+      isSustainOn: currentCh.isSustainOn,
+      directionChangeThreshold: _musicConfig.directionChangeThreshold,
+      lineVolume: currentCh.channelVolume,
+    );
+
+    if (existingIndex != -1) {
+      newPresets[existingIndex] = newPreset;
+    } else {
+      newPresets.add(newPreset);
+    }
+
+    setState(() {
+      _presets = newPresets;
+    });
+
+    // Save to Disk
+    await _savePresetsToDisk();
+  }
+
+  Future<void> _savePresetsToDisk() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String encoded = jsonEncode(_presets.map((e) => e.toJson()).toList());
+    await prefs.setString('instrument_presets', encoded);
+  }
+
+  Future<void> _loadCanvases() async {
+    final canvases = await _canvasRepo.getAllCanvases();
+    setState(() {
+      _savedCanvases = canvases;
+    });
+  }
 
   // --- BUILD ---
 
@@ -666,9 +911,7 @@ class _HomePageState extends State<HomePage>
             onLoadInstrument: _loadPreset,
             onDeleteInstrument: (preset) {
               setState(() => _presets.remove(preset));
-              _savePreset(
-                preset.name,
-              ); 
+              _savePreset(preset.name);
             },
             canvasPresets: _savedCanvases,
             onSaveCanvas: (name) {},
@@ -721,18 +964,28 @@ class _HomePageState extends State<HomePage>
                   Positioned.fill(
                     child: CallbackShortcuts(
                       bindings: {
-                        const SingleActivator(LogicalKeyboardKey.space): _togglePlay,
+                        const SingleActivator(LogicalKeyboardKey.space):
+                            _togglePlay,
                         // Number Keys for Channels
-                        const SingleActivator(LogicalKeyboardKey.digit1): () => _selectChannel(0),
-                        const SingleActivator(LogicalKeyboardKey.digit2): () => _selectChannel(1),
-                        const SingleActivator(LogicalKeyboardKey.digit3): () => _selectChannel(2),
-                        const SingleActivator(LogicalKeyboardKey.digit4): () => _selectChannel(3),
-                        const SingleActivator(LogicalKeyboardKey.digit5): () => _selectChannel(4),
-                        const SingleActivator(LogicalKeyboardKey.digit6): () => _selectChannel(5),
-                        const SingleActivator(LogicalKeyboardKey.digit7): () => _selectChannel(6),
-                        const SingleActivator(LogicalKeyboardKey.digit8): () => _selectChannel(7),
+                        const SingleActivator(LogicalKeyboardKey.digit1): () =>
+                            _selectChannel(0),
+                        const SingleActivator(LogicalKeyboardKey.digit2): () =>
+                            _selectChannel(1),
+                        const SingleActivator(LogicalKeyboardKey.digit3): () =>
+                            _selectChannel(2),
+                        const SingleActivator(LogicalKeyboardKey.digit4): () =>
+                            _selectChannel(3),
+                        const SingleActivator(LogicalKeyboardKey.digit5): () =>
+                            _selectChannel(4),
+                        const SingleActivator(LogicalKeyboardKey.digit6): () =>
+                            _selectChannel(5),
+                        const SingleActivator(LogicalKeyboardKey.digit7): () =>
+                            _selectChannel(6),
+                        const SingleActivator(LogicalKeyboardKey.digit8): () =>
+                            _selectChannel(7),
                         // Tool Keys
-                        const SingleActivator(LogicalKeyboardKey.digit0): _selectGradientTool,
+                        const SingleActivator(LogicalKeyboardKey.digit0):
+                            _selectGradientTool,
                       },
                       child: Focus(
                         focusNode: _focusNode,
@@ -766,9 +1019,7 @@ class _HomePageState extends State<HomePage>
                           playLineAnimation: _playLineController,
                           backgroundShader: _backgroundShader,
                           gradientStrokes: _gradientStrokes,
-                          showGradientOverlays:
-                              _selectedPaneIndex ==
-                              2, 
+                          showGradientOverlays: _selectedPaneIndex == 2,
                           // Callbacks
                           onCurrentLineUpdated: (line) {
                             setState(() {
@@ -778,24 +1029,24 @@ class _HomePageState extends State<HomePage>
                           onLineCompleted: (line) {
                             // NEW: Inject Channel Index into Line
                             final lineWithChannel = DrawnLine(
-                                id: line.id, 
-                                path: line.path,
-                                color: line.color,
-                                width: line.width,
-                                soundFont: line.soundFont,
-                                program: line.program,
-                                sfId: line.sfId,
-                                instrumentSlotIndex: line.instrumentSlotIndex,
-                                channelIndex: _musicConfig.selectedChannelIndex, // INJECT HERE
-                                spread: line.spread,
-                                opacity: line.opacity,
-                                bristleCount: line.bristleCount,
-                                useNeonGlow: line.useNeonGlow
+                              id: line.id,
+                              path: line.path,
+                              color: line.color,
+                              width: line.width,
+                              soundFont: line.soundFont,
+                              program: line.program,
+                              sfId: line.sfId,
+                              instrumentSlotIndex: line.instrumentSlotIndex,
+                              channelIndex: _musicConfig
+                                  .selectedChannelIndex, // INJECT HERE
+                              spread: line.spread,
+                              opacity: line.opacity,
+                              bristleCount: line.bristleCount,
+                              useNeonGlow: line.useNeonGlow,
                             );
-                            
+
                             setState(() {
-                              _lines = List.from(_lines)
-                                ..add(lineWithChannel); 
+                              _lines = List.from(_lines)..add(lineWithChannel);
                               _currentLine = null;
                             });
                           },
@@ -841,5 +1092,4 @@ class _HomePageState extends State<HomePage>
       ),
     );
   }
-}
 }
