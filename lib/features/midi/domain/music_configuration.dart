@@ -117,14 +117,49 @@ class MusicConfiguration {
        instrumentSlots = instrumentSlots ?? _getDefaultSlots();
 
   static List<InstrumentSlot> _getDefaultSlots() {
-    return List.generate(8, (index) {
-      // Default to some variety if possible, or just standard piano for now
-      return InstrumentSlot(
-        name: 'Instrument ${index + 1}',
-        soundFont: 'Dystopian Terra.sf2', // Default SF
-        program: 0, // Grand Piano
-      );
-    });
+    return [
+      InstrumentSlot(
+        name: 'Instrument 1',
+        soundFont: 'White Grand Piano II.sf2',
+        program: 0,
+      ),
+      InstrumentSlot(
+        name: 'Instrument 2',
+        soundFont: 'Dystopian Terra.sf2',
+        program: 2,
+      ),
+      InstrumentSlot(
+        name: 'Instrument 3',
+        soundFont: 'VocalsPapel.sf2',
+        program: 3,
+      ),
+      InstrumentSlot(
+        name: 'Instrument 4',
+        soundFont: 'casio_sk_200_gm.sf2',
+        program: 54,
+      ),
+      InstrumentSlot(
+        name: 'Instrument 5',
+        soundFont: 'casio_sk_200_gm.sf2',
+        program: 68,
+      ),
+      InstrumentSlot(
+        name: 'Instrument 6',
+        soundFont: 'casio_sk_200_gm.sf2',
+        program: 93,
+      ),
+      InstrumentSlot(
+        name: 'Instrument 7',
+        soundFont:
+            'Authentic Shreddage X Soundfont MEGALO VERSION PRE AMPED STEREO EQ - That1Rand0mChannel.sf2',
+        program: 0,
+      ),
+      InstrumentSlot(
+        name: 'Instrument 8',
+        soundFont: 'Studio FG460s II Pro Guitar Pack.sf2',
+        program: 0,
+      ),
+    ];
   }
 
   MusicConfiguration copyWith({

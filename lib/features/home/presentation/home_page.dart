@@ -103,11 +103,16 @@ class _HomePageState extends State<HomePage>
   int? _lastChannel0Program;
 
   final List<String> _soundFonts = [
+    'Authentic Shreddage X Soundfont MEGALO VERSION PRE AMPED STEREO EQ - That1Rand0mChannel.sf2',
+    'Clean Stratocaster.sf2',
     'Dystopian Terra.sf2',
+    'Emu Rockgtr.sf2',
+    'Studio FG460s II Pro Guitar Pack.sf2',
     'VocalsPapel.sf2',
     'White Grand Piano I.sf2',
     'White Grand Piano II.sf2',
     'White Grand Piano III.sf2',
+    'White Grand Piano IV.sf2',
     'White Grand Piano V.sf2',
     'casio_sk_200_gm.sf2',
     'mick_gordon_string_efx.sf2',
