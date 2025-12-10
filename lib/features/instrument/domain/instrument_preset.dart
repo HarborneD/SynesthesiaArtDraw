@@ -17,6 +17,7 @@ class InstrumentPreset {
   final double reverbLevel; // New True Reverb (0-127 or 0.0-1.0)
   final bool isSustainOn;
   final double directionChangeThreshold;
+  final double lineVolume; // Added lineVolume
 
   InstrumentPreset({
     required this.name,
@@ -35,6 +36,7 @@ class InstrumentPreset {
     required this.reverbLevel,
     required this.isSustainOn,
     required this.directionChangeThreshold,
+    required this.lineVolume,
   });
 
   Map<String, dynamic> toJson() {
@@ -55,6 +57,7 @@ class InstrumentPreset {
       'reverbLevel': reverbLevel,
       'isSustainOn': isSustainOn,
       'directionChangeThreshold': directionChangeThreshold,
+      'lineVolume': lineVolume,
     };
   }
 
@@ -87,6 +90,7 @@ class InstrumentPreset {
       isSustainOn: json['isSustainOn'] as bool? ?? false,
       directionChangeThreshold:
           (json['directionChangeThreshold'] as num?)?.toDouble() ?? 90.0,
+      lineVolume: (json['lineVolume'] as num?)?.toDouble() ?? 0.8,
     );
   }
 }

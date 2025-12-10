@@ -2,12 +2,12 @@ import 'package:tonic/tonic.dart';
 
 enum DroneMapping { tonal, modal, chromatic }
 
-class InstrumentSlot {
+class SoundFontChannel {
   final String? name; // Optional, e.g. "Lead", "Bass"
   final String soundFont;
   final int program; // 0-127
 
-  InstrumentSlot({this.name, required this.soundFont, required this.program});
+  SoundFontChannel({this.name, required this.soundFont, required this.program});
 
   Map<String, dynamic> toJson() => {
     'name': name,
@@ -15,16 +15,16 @@ class InstrumentSlot {
     'program': program,
   };
 
-  factory InstrumentSlot.fromJson(Map<String, dynamic> json) {
-    return InstrumentSlot(
+  factory SoundFontChannel.fromJson(Map<String, dynamic> json) {
+    return SoundFontChannel(
       name: json['name'] as String?,
       soundFont: json['soundFont'] as String,
       program: json['program'] as int,
     );
   }
 
-  InstrumentSlot copyWith({String? name, String? soundFont, int? program}) {
-    return InstrumentSlot(
+  SoundFontChannel copyWith({String? name, String? soundFont, int? program}) {
+    return SoundFontChannel(
       name: name ?? this.name,
       soundFont: soundFont ?? this.soundFont,
       program: program ?? this.program,
@@ -46,9 +46,9 @@ class MusicConfiguration {
   final int gridBars;
   final bool showPlayLine;
 
-  // Instrument Palette (Slots)
-  final List<InstrumentSlot> instrumentSlots;
-  final int selectedInstrumentSlot; // 0-7
+  // Instrument Palette (Channels)
+  final List<SoundFontChannel> soundFontChannels;
+  final int selectedChannelIndex; // 0-7
 
   // Drone
   final bool droneEnabled;
@@ -62,7 +62,8 @@ class MusicConfiguration {
   // Line Instrument
   final double lineVolume; // 0.0 - 1.0
 
-  InstrumentSlot get currentSlot => instrumentSlots[selectedInstrumentSlot];
+  SoundFontChannel get currentChannel =>
+      soundFontChannels[selectedChannelIndex];
 
   int get totalBeats => gridBars * 4;
 
@@ -111,51 +112,51 @@ class MusicConfiguration {
     this.droneSoundFont = 'casio_sk_200_gm.sf2',
     this.droneVolume = 0.8,
     this.lineVolume = 0.8,
-    List<InstrumentSlot>? instrumentSlots,
-    this.selectedInstrumentSlot = 0,
+    List<SoundFontChannel>? soundFontChannels,
+    this.selectedChannelIndex = 0,
   }) : selectedDegrees = selectedDegrees ?? _getDefaultDegrees(),
-       instrumentSlots = instrumentSlots ?? _getDefaultSlots();
+       soundFontChannels = soundFontChannels ?? _getDefaultChannels();
 
-  static List<InstrumentSlot> _getDefaultSlots() {
+  static List<SoundFontChannel> _getDefaultChannels() {
     return [
-      InstrumentSlot(
-        name: 'Instrument 1',
+      SoundFontChannel(
+        name: 'Channel 1',
         soundFont: 'White Grand Piano II.sf2',
         program: 0,
       ),
-      InstrumentSlot(
-        name: 'Instrument 2',
+      SoundFontChannel(
+        name: 'Channel 2',
         soundFont: 'Dystopian Terra.sf2',
         program: 2,
       ),
-      InstrumentSlot(
-        name: 'Instrument 3',
+      SoundFontChannel(
+        name: 'Channel 3',
         soundFont: 'VocalsPapel.sf2',
         program: 3,
       ),
-      InstrumentSlot(
-        name: 'Instrument 4',
+      SoundFontChannel(
+        name: 'Channel 4',
         soundFont: 'casio_sk_200_gm.sf2',
         program: 54,
       ),
-      InstrumentSlot(
-        name: 'Instrument 5',
+      SoundFontChannel(
+        name: 'Channel 5',
         soundFont: 'Emu Rockgtr.sf2',
         program: 2,
       ),
-      InstrumentSlot(
-        name: 'Instrument 6',
+      SoundFontChannel(
+        name: 'Channel 6',
         soundFont: 'casio_sk_200_gm.sf2',
         program: 93,
       ),
-      InstrumentSlot(
-        name: 'Instrument 7',
+      SoundFontChannel(
+        name: 'Channel 7',
         soundFont:
             'Authentic Shreddage X Soundfont MEGALO VERSION PRE AMPED STEREO EQ - That1Rand0mChannel.sf2',
         program: 0,
       ),
-      InstrumentSlot(
-        name: 'Instrument 8',
+      SoundFontChannel(
+        name: 'Channel 8',
         soundFont: 'Studio FG460s II Pro Guitar Pack.sf2',
         program: 0,
       ),
@@ -179,8 +180,8 @@ class MusicConfiguration {
     String? droneSoundFont,
     double? droneVolume,
     double? lineVolume,
-    List<InstrumentSlot>? instrumentSlots,
-    int? selectedInstrumentSlot,
+    List<SoundFontChannel>? soundFontChannels,
+    int? selectedChannelIndex,
   }) {
     return MusicConfiguration(
       octaves: octaves ?? this.octaves,
@@ -201,9 +202,8 @@ class MusicConfiguration {
       droneSoundFont: droneSoundFont ?? this.droneSoundFont,
       droneVolume: droneVolume ?? this.droneVolume,
       lineVolume: lineVolume ?? this.lineVolume,
-      instrumentSlots: instrumentSlots ?? this.instrumentSlots,
-      selectedInstrumentSlot:
-          selectedInstrumentSlot ?? this.selectedInstrumentSlot,
+      soundFontChannels: soundFontChannels ?? this.soundFontChannels,
+      selectedChannelIndex: selectedChannelIndex ?? this.selectedChannelIndex,
     );
   }
 
@@ -225,8 +225,8 @@ class MusicConfiguration {
       'droneSoundFont': droneSoundFont,
       'droneVolume': droneVolume,
       'lineVolume': lineVolume,
-      'instrumentSlots': instrumentSlots.map((e) => e.toJson()).toList(),
-      'selectedInstrumentSlot': selectedInstrumentSlot,
+      'soundFontChannels': soundFontChannels.map((e) => e.toJson()).toList(),
+      'selectedChannelIndex': selectedChannelIndex,
     };
   }
 
@@ -261,10 +261,17 @@ class MusicConfiguration {
           json['droneSoundFont'] as String? ?? 'casio_sk_200_gm.sf2',
       droneVolume: (json['droneVolume'] as num?)?.toDouble() ?? 0.8,
       lineVolume: (json['lineVolume'] as num?)?.toDouble() ?? 0.8,
-      instrumentSlots: (json['instrumentSlots'] as List<dynamic>?)
-          ?.map((e) => InstrumentSlot.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      selectedInstrumentSlot: json['selectedInstrumentSlot'] as int? ?? 0,
+      soundFontChannels:
+          (json['soundFontChannels'] as List<dynamic>?)
+              ?.map((e) => SoundFontChannel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          (json['instrumentSlots'] as List<dynamic>?)
+              ?.map((e) => SoundFontChannel.fromJson(e as Map<String, dynamic>))
+              .toList(), // Fallback for old save data
+      selectedChannelIndex:
+          json['selectedChannelIndex'] as int? ??
+          json['selectedInstrumentSlot'] as int? ??
+          0,
     );
   }
 

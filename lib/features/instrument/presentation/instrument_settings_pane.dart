@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 class InstrumentSettingsPane extends StatefulWidget {
   final String selectedSoundFont;
   final ValueChanged<String> onSoundFontChanged;
-  final int selectedInstrumentIndex; // This is now Slot Index
-  final ValueChanged<int> onInstrumentChanged;
+  final int selectedChannelIndex; // This is now Slot Index
+  final ValueChanged<int> onChannelChanged;
 
   final int selectedProgram;
   final ValueChanged<int> onProgramChanged;
@@ -29,8 +29,8 @@ class InstrumentSettingsPane extends StatefulWidget {
     super.key,
     required this.selectedSoundFont,
     required this.onSoundFontChanged,
-    required this.selectedInstrumentIndex,
-    required this.onInstrumentChanged,
+    required this.selectedChannelIndex,
+    required this.onChannelChanged,
     required this.selectedProgram,
     required this.onProgramChanged,
     required this.availableSoundFonts,
@@ -93,7 +93,7 @@ class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
 
           const Divider(height: 32),
           const Text(
-            'Instrument Palette',
+            'Sound Font Channels',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
@@ -103,7 +103,7 @@ class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: List.generate(8, (index) {
-                final isSelected = widget.selectedInstrumentIndex == index;
+                final isSelected = widget.selectedChannelIndex == index;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8.0),
                   child: FilterChip(
@@ -111,7 +111,7 @@ class _InstrumentSettingsPaneState extends State<InstrumentSettingsPane> {
                     selected: isSelected,
                     onSelected: (bool selected) {
                       if (selected) {
-                        widget.onInstrumentChanged(index);
+                        widget.onChannelChanged(index);
                       }
                     },
                   ),

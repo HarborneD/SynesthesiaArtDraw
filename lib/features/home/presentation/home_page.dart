@@ -166,7 +166,7 @@ class _HomePageState extends State<HomePage>
   */
 
     // Load Drawing SoundFont
-    await _loadSoundFont(_musicConfig.currentSlot.soundFont);
+    await _loadSoundFont(_musicConfig.currentChannel.soundFont);
 
     // Load Drone SoundFont
     await _loadDroneSoundFont(_musicConfig.droneSoundFont);
@@ -232,7 +232,7 @@ class _HomePageState extends State<HomePage>
       // NOTE: This now only affects the 'active' drawing instrument
       _midi.selectInstrument(
         sfId: _sfId,
-        program: _musicConfig.currentSlot.program,
+        program: _musicConfig.currentChannel.program,
         channel: 0,
       );
     } catch (e) {
@@ -241,7 +241,9 @@ class _HomePageState extends State<HomePage>
   }
 
   void _cycleSoundFont(int direction) {
-    int currentIndex = _soundFonts.indexOf(_musicConfig.currentSlot.soundFont);
+    int currentIndex = _soundFonts.indexOf(
+      _musicConfig.currentChannel.soundFont,
+    );
     if (currentIndex == -1) currentIndex = 0;
 
     int newIndex = (currentIndex + direction) % _soundFonts.length;
@@ -249,30 +251,40 @@ class _HomePageState extends State<HomePage>
 
     final newFont = _soundFonts[newIndex];
     // Update Config
-    final updatedSlots = List<InstrumentSlot>.from(
-      _musicConfig.instrumentSlots,
+    final updatedChannels = List<SoundFontChannel>.from(
+      _musicConfig.soundFontChannels,
     );
-    updatedSlots[_musicConfig.selectedInstrumentSlot] = _musicConfig.currentSlot
+    updatedChannels[_musicConfig.selectedChannelIndex] = _musicConfig
+        .currentChannel
         .copyWith(soundFont: newFont);
 
-    final newConfig = _musicConfig.copyWith(instrumentSlots: updatedSlots);
+    final newConfig = _musicConfig.copyWith(soundFontChannels: updatedChannels);
     _updateConfig(newConfig);
 
     _loadSoundFont(newFont);
   }
 
+  void _selectChannel(int index) {
+    if (index < 0 || index >= _musicConfig.soundFontChannels.length) return;
+    final newConfig = _musicConfig.copyWith(selectedChannelIndex: index);
+    _updateConfig(newConfig);
+    // Reload SoundFont
+    _loadSoundFont(newConfig.currentChannel.soundFont);
+  }
+
   void _cycleInstrument(int direction) {
-    int newProgram = (_musicConfig.currentSlot.program + direction) % 128;
+    int newProgram = (_musicConfig.currentChannel.program + direction) % 128;
     if (newProgram < 0) newProgram = 127;
 
     // Update Config
-    final updatedSlots = List<InstrumentSlot>.from(
-      _musicConfig.instrumentSlots,
+    final updatedChannels = List<SoundFontChannel>.from(
+      _musicConfig.soundFontChannels,
     );
-    updatedSlots[_musicConfig.selectedInstrumentSlot] = _musicConfig.currentSlot
+    updatedChannels[_musicConfig.selectedChannelIndex] = _musicConfig
+        .currentChannel
         .copyWith(program: newProgram);
 
-    final newConfig = _musicConfig.copyWith(instrumentSlots: updatedSlots);
+    final newConfig = _musicConfig.copyWith(soundFontChannels: updatedChannels);
     _updateConfig(newConfig);
 
     _midi.selectInstrument(sfId: _sfId, program: newProgram, channel: 0);
@@ -937,57 +949,48 @@ class _HomePageState extends State<HomePage>
           onDirectionChangeThresholdChanged: (val) => _updateConfig(
             _musicConfig.copyWith(directionChangeThreshold: val),
           ),
-          selectedSoundFont: _musicConfig.currentSlot.soundFont,
-          onSoundFontChanged: (val) async {
-            // Update SoundFont for CURRENT SLOT
-            if (val != _musicConfig.currentSlot.soundFont) {
-              // Update Config Logic
-              final updatedSlots = List<InstrumentSlot>.from(
-                _musicConfig.instrumentSlots,
-              );
-              updatedSlots[_musicConfig.selectedInstrumentSlot] = _musicConfig
-                  .currentSlot
-                  .copyWith(soundFont: val);
-
-              final newConfig = _musicConfig.copyWith(
-                instrumentSlots: updatedSlots,
-              );
-              _updateConfig(newConfig);
-
-              // Trigger Load
-              await _loadSoundFont(val);
-            }
-          },
-          selectedInstrumentIndex: _musicConfig.selectedInstrumentSlot,
-          onInstrumentChanged: (val) {
-            // Change Selected Slot
-            _updateConfig(_musicConfig.copyWith(selectedInstrumentSlot: val));
-            // Ensure we load/select the sound font for this new slot
-            final newSlot = _musicConfig.instrumentSlots[val];
-            _loadSoundFont(newSlot.soundFont).then((_) {
-              _midi.selectInstrument(
-                sfId: _loadedSoundFonts[newSlot.soundFont] ?? _sfId,
-                program: newSlot.program,
-              );
-            });
-          },
-          selectedProgram: _musicConfig.currentSlot.program,
-          onProgramChanged: (val) {
-            // Update Program for CURRENT SLOT
-            final updatedSlots = List<InstrumentSlot>.from(
-              _musicConfig.instrumentSlots,
+          selectedSoundFont: _musicConfig.currentChannel.soundFont,
+          onSoundFontChanged: (val) {
+            // Update currently selected list item
+            final updatedChannels = List<SoundFontChannel>.from(
+              _musicConfig.soundFontChannels,
             );
-            updatedSlots[_musicConfig.selectedInstrumentSlot] = _musicConfig
-                .currentSlot
+            updatedChannels[_musicConfig.selectedChannelIndex] = _musicConfig
+                .currentChannel
+                .copyWith(soundFont: val);
+
+            final newConfig = _musicConfig.copyWith(
+              soundFontChannels: updatedChannels,
+            );
+            _updateConfig(newConfig);
+            _loadSoundFont(val);
+          },
+          selectedChannelIndex: _musicConfig.selectedChannelIndex,
+          onChannelChanged: (index) {
+            // Change selection
+            final newConfig = _musicConfig.copyWith(
+              selectedChannelIndex: index,
+            );
+            _updateConfig(newConfig);
+            // Need to reload soundfont for the new slot
+            final newFont = newConfig.soundFontChannels[index].soundFont;
+            _loadSoundFont(newFont);
+          },
+          selectedProgram: _musicConfig.currentChannel.program,
+          onProgramChanged: (val) {
+            // Update currently selected list item
+            final updatedChannels = List<SoundFontChannel>.from(
+              _musicConfig.soundFontChannels,
+            );
+            updatedChannels[_musicConfig.selectedChannelIndex] = _musicConfig
+                .currentChannel
                 .copyWith(program: val);
 
             final newConfig = _musicConfig.copyWith(
-              instrumentSlots: updatedSlots,
+              soundFontChannels: updatedChannels,
             );
             _updateConfig(newConfig);
-
-            // Send immediate MIDI change if active
-            _midi.selectInstrument(sfId: _sfId, program: val);
+            _midi.selectInstrument(sfId: _sfId, program: val, channel: 0);
           },
           lineVolume: _musicConfig.lineVolume,
           onLineVolumeChanged: (val) =>
@@ -1032,6 +1035,8 @@ class _HomePageState extends State<HomePage>
 
   void _handleKeyEvent(RawKeyEvent event) {
     if (event is RawKeyDownEvent) {
+      final keyLabel = event.logicalKey.keyLabel;
+
       if (event.logicalKey == LogicalKeyboardKey.keyL) {
         setState(() => _currentMode = DrawingMode.line);
       } else if (event.logicalKey == LogicalKeyboardKey.keyP) {
@@ -1076,6 +1081,17 @@ class _HomePageState extends State<HomePage>
         _toggleScaleDegree(5);
       } else if (event.logicalKey == LogicalKeyboardKey.digit7) {
         _toggleScaleDegree(6);
+      }
+      // Process 'SoundFont Channels' selection (keys 1-8)
+      if (_musicConfig.soundFontChannels.length >= 8) {
+        if (keyLabel == '1') _selectChannel(0);
+        if (keyLabel == '2') _selectChannel(1);
+        if (keyLabel == '3') _selectChannel(2);
+        if (keyLabel == '4') _selectChannel(3);
+        if (keyLabel == '5') _selectChannel(4);
+        if (keyLabel == '6') _selectChannel(5);
+        if (keyLabel == '7') _selectChannel(6);
+        if (keyLabel == '8') _selectChannel(7);
       }
     }
   }
@@ -1198,14 +1214,15 @@ class _HomePageState extends State<HomePage>
       colorValue: _selectedLineColor.value,
       triggerOnBoundary: _triggerOnBoundary,
       minPixelsForTrigger: _minPixels,
-      soundFont: _musicConfig.currentSlot.soundFont,
-      programIndex: _musicConfig.currentSlot.program,
+      soundFont: _musicConfig.currentChannel.soundFont,
+      programIndex: _musicConfig.currentChannel.program,
       isDelayOn: _isDelayOn,
       delayTime: _delayTime,
       delayFeedback: _delayFeedback,
       reverbLevel: _reverbLevel,
       isSustainOn: _isSustainOn,
       directionChangeThreshold: _musicConfig.directionChangeThreshold,
+      lineVolume: _musicConfig.lineVolume,
     );
 
     setState(() {
@@ -1230,20 +1247,19 @@ class _HomePageState extends State<HomePage>
       _reverbLevel = preset.reverbLevel;
       _isSustainOn = preset.isSustainOn;
 
-      // Update Config Logic for Slot
-      final updatedSlots = List<InstrumentSlot>.from(
-        _musicConfig.instrumentSlots,
+      // Update Config
+      final updatedChannels = List<SoundFontChannel>.from(
+        _musicConfig.soundFontChannels,
       );
-      updatedSlots[_musicConfig.selectedInstrumentSlot] = _musicConfig
-          .currentSlot
+      updatedChannels[_musicConfig.selectedChannelIndex] = _musicConfig
+          .currentChannel
           .copyWith(soundFont: preset.soundFont, program: preset.programIndex);
 
-      _updateConfig(
-        _musicConfig.copyWith(
-          instrumentSlots: updatedSlots,
-          directionChangeThreshold: preset.directionChangeThreshold,
-        ),
+      final newConfig = _musicConfig.copyWith(
+        directionChangeThreshold: preset.directionChangeThreshold,
+        soundFontChannels: updatedChannels,
       );
+      _updateConfig(newConfig);
 
       _loadSoundFont(preset.soundFont);
     });
@@ -1343,17 +1359,17 @@ class _HomePageState extends State<HomePage>
                               width: line.width,
 
                               // Legacy/Fallback (optional, but good for robust standalone lines)
-                              soundFont: _musicConfig.currentSlot.soundFont,
-                              program: _musicConfig.currentSlot.program,
+                              soundFont: _musicConfig.currentChannel.soundFont,
+                              program: _musicConfig.currentChannel.program,
                               sfId:
                                   _loadedSoundFonts[_musicConfig
-                                      .currentSlot
+                                      .currentChannel
                                       .soundFont] ??
                                   _sfId,
 
                               // NEW PALETTE REFERENCE
                               instrumentSlotIndex:
-                                  _musicConfig.selectedInstrumentSlot,
+                                  _musicConfig.selectedChannelIndex,
 
                               // Capture current brush style
                               spread: _brushSpread,
@@ -1406,12 +1422,12 @@ class _HomePageState extends State<HomePage>
                               // DETERMINE SOUND FOR THIS TRIGGER
                               int targetSfId = _sfId;
                               int targetProgram =
-                                  _musicConfig.currentSlot.program;
+                                  _musicConfig.currentChannel.program;
 
                               // Check Instrument Slot
                               if (triggeredLine.instrumentSlotIndex != null) {
                                 final slot =
-                                    _musicConfig.instrumentSlots[triggeredLine
+                                    _musicConfig.soundFontChannels[triggeredLine
                                         .instrumentSlotIndex!];
                                 targetProgram = slot.program;
                                 if (_loadedSoundFonts.containsKey(
