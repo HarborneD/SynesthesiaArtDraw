@@ -219,7 +219,7 @@ class _CanvasWidgetState extends State<CanvasWidget> {
   void _handlePanStart(DragStartDetails details, BoxConstraints constraints) {
     if (_isRightClick) return;
 
-    if (widget.drawingMode == DrawingMode.erase) {
+    if (widget.drawingMode == DrawingMode.eraser) {
       _handleErase(details.localPosition);
       return;
     }
@@ -268,7 +268,7 @@ class _CanvasWidgetState extends State<CanvasWidget> {
   void _handlePanUpdate(DragUpdateDetails details, BoxConstraints constraints) {
     if (_isRightClick) return;
 
-    if (widget.drawingMode == DrawingMode.erase) {
+    if (widget.drawingMode == DrawingMode.eraser) {
       _handleErase(details.localPosition);
       return;
     }

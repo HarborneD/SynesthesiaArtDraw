@@ -223,7 +223,7 @@ class MusicConfiguration {
     this.droneMapping = DroneMapping.tonal,
     this.droneInstrument = 49, // Strings Ensemble 2
     this.droneSoundFont = 'casio_sk_200_gm.sf2',
-    this.droneVolume = 0.8,
+    this.droneVolume = 0.2, // Default 20%
     this.lineVolume = 0.8,
     List<SoundFontChannel>? soundFontChannels,
     this.selectedChannelIndex = 0,

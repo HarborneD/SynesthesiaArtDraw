@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../midi/domain/music_configuration.dart'; // Import for SoundFontChannel
 
 class ToolbarWidget extends StatelessWidget {
   final ValueChanged<int?> onPaneSelected;
@@ -7,10 +8,15 @@ class ToolbarWidget extends StatelessWidget {
   // New: Channel Selection
   final int selectedChannelIndex;
   final ValueChanged<int> onChannelSelected;
+  final List<SoundFontChannel> channels; // New Prop
 
   // New: Gradient Tool Props
   final bool isGradientToolActive;
   final VoidCallback onGradientToolSelected;
+
+  // New: Eraser Tool Props
+  final bool isEraserToolActive;
+  final VoidCallback onEraserToolSelected;
 
   const ToolbarWidget({
     super.key,
@@ -20,6 +26,9 @@ class ToolbarWidget extends StatelessWidget {
     required this.onChannelSelected,
     required this.isGradientToolActive,
     required this.onGradientToolSelected,
+    required this.isEraserToolActive,
+    required this.onEraserToolSelected,
+    required this.channels,
   });
 
   @override
@@ -63,27 +72,41 @@ class ToolbarWidget extends StatelessWidget {
 
           const Divider(color: Colors.white24, height: 20),
 
-          // Channel Selector (1-8)
-          Expanded(
-            child: ListView.builder(
-              itemCount: 8,
-              padding: EdgeInsets.zero,
-              itemBuilder: (context, idx) {
-                return _buildChannelButton(idx);
-              },
-            ),
-          ),
+          const Divider(color: Colors.white24, height: 20),
 
-          // Gradient Tool Icon (Now below Channel 8 in the flow)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
-            child: IconButton(
-              icon: const Icon(Icons.gradient),
-              color: isGradientToolActive
-                  ? Colors.tealAccent
-                  : Colors.white54, // Highlight active state
-              onPressed: onGradientToolSelected,
-              tooltip: 'Gradient Tool (0)',
+          // Channel Selector (1-8) + Tools
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  ...List.generate(
+                    channels.length,
+                    (index) => _buildChannelButton(index),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Gradient Tool
+                  IconButton(
+                    icon: const Icon(Icons.gradient),
+                    color: isGradientToolActive
+                        ? Colors.tealAccent
+                        : Colors.white54,
+                    onPressed: onGradientToolSelected,
+                    tooltip: 'Gradient Tool (0 / G)',
+                  ),
+
+                  // Eraser Tool
+                  IconButton(
+                    icon: const Icon(Icons.auto_fix_normal), // or backspace?
+                    color: isEraserToolActive
+                        ? Colors.tealAccent
+                        : Colors.white54,
+                    onPressed: onEraserToolSelected,
+                    tooltip: 'Eraser Tool (E)',
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -114,6 +137,15 @@ class ToolbarWidget extends StatelessWidget {
 
   Widget _buildChannelButton(int index) {
     final isSelected = selectedChannelIndex == index;
+    // Get Color from Channel
+    Color channelColor = Colors.grey;
+    if (index < channels.length) {
+      channelColor = Color(channels[index].colorValue); // Use stored color
+    }
+
+    // Ensure visibility on dark background if color is too dark?
+    // Usually user picks bright colors for neon, but let's trust the user.
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
       child: GestureDetector(
@@ -124,18 +156,24 @@ class ToolbarWidget extends StatelessWidget {
           height: 36,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isSelected ? Colors.tealAccent : Colors.transparent,
+            color: isSelected
+                ? Colors.white24
+                : Colors.transparent, // Highlight background if selected
             shape: BoxShape.circle,
             border: Border.all(
-              color: isSelected ? Colors.transparent : Colors.grey,
-              width: 1,
+              color: isSelected
+                  ? Colors.white
+                  : channelColor, // Border matches brush color or White if selected
+              width: isSelected ? 2 : 1.5,
             ),
           ),
           child: Text(
             (index + 1).toString(),
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: isSelected ? Colors.black : Colors.white70,
+              color: isSelected
+                  ? Colors.white
+                  : channelColor, // Text matches brush color
             ),
           ),
         ),

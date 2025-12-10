@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../../midi/domain/music_configuration.dart';
 
 class ChannelSettingsPane extends StatelessWidget {
   final SoundFontChannel channel;
   final ValueChanged<SoundFontChannel> onChannelChanged;
   final List<String> availableSoundFonts;
-  final int channelIndex; // Added channelIndex
+  final int channelIndex;
 
   const ChannelSettingsPane({
     super.key,
     required this.channel,
     required this.onChannelChanged,
     required this.availableSoundFonts,
-    required this.channelIndex, // Required now
+    required this.channelIndex,
   });
 
   @override
@@ -22,38 +23,33 @@ class ChannelSettingsPane extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header
+          Text(
+            'Channel ${channelIndex + 1} Settings',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+
+          // Volume Slider (Moved under header)
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Channel ${channelIndex + 1} Settings', // Fixed Header
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+              const Text(
+                "Volume:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Expanded(
+                child: Slider(
+                  value: channel.channelVolume,
+                  min: 0.0,
+                  max: 1.0,
+                  onChanged: (val) =>
+                      onChannelChanged(channel.copyWith(channelVolume: val)),
                 ),
               ),
-              // Channel Volume
-              SizedBox(
-                width: 200, // Increased width to prevent overflow
-                child: Row(
-                  // Changed to Row for better layout
-                  children: [
-                    const Text("Vol", style: TextStyle(fontSize: 12)),
-                    Expanded(
-                      child: Slider(
-                        value: channel.channelVolume,
-                        min: 0.0,
-                        max: 1.0,
-                        onChanged: (val) => onChannelChanged(
-                          channel.copyWith(channelVolume: val),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              Text("${(channel.channelVolume * 100).toInt()}%"),
             ],
           ),
+
           const SizedBox(height: 10),
 
           // 1. Drawing / Brush Settings
@@ -98,7 +94,7 @@ class ChannelSettingsPane extends StatelessWidget {
       children: [
         // Color Picker (Compact)
         const SizedBox(height: 10),
-        _buildColorSelector(),
+        _buildColorPicker(context), // Updated
         const SizedBox(height: 10),
 
         // Trigger Config
@@ -144,6 +140,8 @@ class ChannelSettingsPane extends StatelessWidget {
       ],
     );
   }
+
+  // ... (Sound and Effects settings unchanged, but including for context/safety)
 
   Widget _buildSoundSettings(BuildContext context) {
     return Column(
@@ -261,59 +259,61 @@ class ChannelSettingsPane extends StatelessWidget {
     );
   }
 
-  Widget _buildColorSelector() {
-    final colors = [
-      Colors.black,
-      Colors.white,
-      Colors.red,
-      Colors.green,
-      Colors.blue,
-      Colors.yellow,
-      Colors.purple,
-      Colors.orange,
-      Colors.teal,
-      Colors.pink,
-      Colors.cyan,
-      Colors.lime,
-      Colors.indigo,
-      Colors.amber,
-      Colors.brown,
-      Colors.grey,
-    ];
+  Widget _buildColorPicker(BuildContext context) {
+    final currentColor = Color(channel.colorValue);
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: colors.map((color) {
-        final isSelected = channel.colorValue == color.value;
-        return GestureDetector(
-          onTap: () =>
-              onChannelChanged(channel.copyWith(colorValue: color.value)),
-          child: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isSelected
-                    ? Colors.white
-                    : Colors.transparent, // High contrast selection
-                width: isSelected ? 3.0 : 0.0, // Clearer Thickness
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (ctx) {
+            return AlertDialog(
+              title: const Text('Select Channel Color'),
+              content: SingleChildScrollView(
+                child: ColorPicker(
+                  pickerColor: currentColor,
+                  onColorChanged: (color) {
+                    onChannelChanged(channel.copyWith(colorValue: color.value));
+                  },
+                  // Minimal UI
+                  enableAlpha: false,
+                  displayThumbColor: true,
+                  paletteType: PaletteType.hueWheel,
+                ),
               ),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.5),
-                        blurRadius: 4,
-                        spreadRadius: 2,
-                      ),
-                    ]
-                  : null, // Add glow for extra visibility
-            ),
-          ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
         );
-      }).toList(),
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.grey[800],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: currentColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text("Change Color"),
+          ],
+        ),
+      ),
     );
   }
 }

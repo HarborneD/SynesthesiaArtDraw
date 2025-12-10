@@ -273,6 +273,13 @@ class _HomePageState extends State<HomePage>
     });
   }
 
+  void _selectEraserTool() {
+    setState(() {
+      _currentMode = DrawingMode.eraser;
+      _selectedPaneIndex = null; // Close panes? Or keep current?
+    });
+  }
+
   void _togglePlay() {
     setState(() {
       _isPlaying = !_isPlaying;
@@ -992,6 +999,8 @@ class _HomePageState extends State<HomePage>
                   onChannelSelected: _selectChannel,
                   isGradientToolActive: _currentMode == DrawingMode.gradient,
                   onGradientToolSelected: _selectGradientTool,
+                  isEraserToolActive: _currentMode == DrawingMode.eraser,
+                  onEraserToolSelected: _selectEraserTool,
                   channels:
                       _musicConfig.soundFontChannels, // Pass Channels for Icons
                 ),
@@ -1044,6 +1053,20 @@ class _HomePageState extends State<HomePage>
                                   _selectChannel(7),
                               // Tool Keys
                               const SingleActivator(LogicalKeyboardKey.digit0):
+                                  _selectGradientTool,
+                              // Hotkeys
+                              const SingleActivator(LogicalKeyboardKey.keyP):
+                                  _togglePlay,
+                              const SingleActivator(LogicalKeyboardKey.keyM):
+                                  _toggleMetronome,
+                              const SingleActivator(LogicalKeyboardKey.keyG):
+                                  _selectGradientTool,
+                            }, // Hotkeys
+                              const SingleActivator(LogicalKeyboardKey.keyP):
+                                  _togglePlay,
+                              const SingleActivator(LogicalKeyboardKey.keyM):
+                                  _toggleMetronome,
+                              const SingleActivator(LogicalKeyboardKey.keyG):
                                   _selectGradientTool,
                             },
                             child: Focus(
