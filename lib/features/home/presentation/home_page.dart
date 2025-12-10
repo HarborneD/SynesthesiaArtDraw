@@ -407,7 +407,24 @@ class _HomePageState extends State<HomePage>
     _updateDroneNotes(newNotes);
   }
 
-  void _updateDroneNotes(List<int> newNotes) {
+  void _updateDroneNotes(List<int> newNotes, {bool forceRetrigger = false}) {
+    if (forceRetrigger) {
+      for (final note in _activeDroneNotes) {
+        _midi.stopNote(key: note, channel: 8, sfId: _droneSfId);
+      }
+      for (final note in newNotes) {
+        int velocity = (127 * _musicConfig.droneVolume).round().clamp(0, 127);
+        _midi.playNote(
+          key: note,
+          velocity: velocity,
+          channel: 8,
+          sfId: _droneSfId,
+        );
+      }
+      _activeDroneNotes = newNotes;
+      return;
+    }
+
     for (final note in _activeDroneNotes) {
       if (!newNotes.contains(note)) {
         _midi.stopNote(key: note, channel: 8, sfId: _droneSfId);
@@ -774,9 +791,17 @@ class _HomePageState extends State<HomePage>
   }
 
   void _updateConfig(MusicConfiguration config) {
+    final bool droneVolumeChanged =
+        config.droneVolume != _musicConfig.droneVolume;
+
     setState(() {
       _musicConfig = config;
     });
+
+    if (droneVolumeChanged && _musicConfig.droneEnabled) {
+      // Force re-trigger of current drone notes with new volume
+      _updateDroneNotes(_activeDroneNotes, forceRetrigger: true);
+    }
   }
 
   Future<void> _loadPresets() async {
