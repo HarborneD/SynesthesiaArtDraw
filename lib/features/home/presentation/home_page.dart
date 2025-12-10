@@ -52,9 +52,9 @@ class _HomePageState extends State<HomePage>
   bool _triggerOnBoundary = true; // Default ON
 
   // Brush Customization
-  double _brushSpread = 8.0;
+  double _brushSpread = 7.0;
   double _brushOpacity = 0.5;
-  int _bristleCount = 20;
+  int _bristleCount = 40;
   bool _useNeonGlow = true;
 
   // Gradient State

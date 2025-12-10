@@ -61,9 +61,9 @@ class InstrumentPreset {
   factory InstrumentPreset.fromJson(Map<String, dynamic> json) {
     return InstrumentPreset(
       name: json['name'] as String? ?? 'Untitled Preset',
-      brushSpread: (json['brushSpread'] as num?)?.toDouble() ?? 5.0,
+      brushSpread: (json['brushSpread'] as num?)?.toDouble() ?? 7.0,
       brushOpacity: (json['brushOpacity'] as num?)?.toDouble() ?? 0.5,
-      bristleCount: (json['bristleCount'] as num?)?.toInt() ?? 20,
+      bristleCount: (json['bristleCount'] as num?)?.toInt() ?? 40,
       useNeonGlow: json['useNeonGlow'] as bool? ?? true,
       colorValue: (json['colorValue'] as num?)?.toInt() ?? Colors.teal.value,
       triggerOnBoundary: json['triggerOnBoundary'] as bool? ?? true,

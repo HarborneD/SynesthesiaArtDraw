@@ -232,7 +232,7 @@ class _DrawingToolsPaneState extends State<DrawingToolsPane> {
           "Bristles (Density)",
           widget.bristleCount.toDouble(),
           1.0,
-          40.0,
+          80.0,
           (val) => widget.onBristleCountChanged!(val.toInt()),
         ),
       ],
